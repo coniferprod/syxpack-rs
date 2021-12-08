@@ -227,7 +227,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn header_standard_manufacturer() {
+    fn manufacturer_message() {
+        let message = Message::ManufacturerExclusive(
+            Manufacturer::from_id(ManufacturerId::Standard(0x40)),  // Kawai ID
+            vec![
+                0x00, // MIDI channel 1
+                0x20, // one block data dump
+                0x00, // "synthesizer group"
+                0x04, // K4/K4r ID no.
+                0x00, // internal patch
+                0x3F, // patch slot D-16
+            ],
+        );
+        let message_bytes = message.to_bytes();
+        assert_eq!(message_bytes, vec![0xF0, 0x40, 0x00, 0x20, 0x00, 0x04, 0x00, 0x3F, 0xF7]);
+    }
+
+    #[test]
+    fn standard_manufacturer() {
         let message = Message::ManufacturerExclusive(
             Manufacturer::from_id(ManufacturerId::Standard(0x43)),
             vec![],
@@ -237,7 +254,7 @@ mod tests {
     }
 
     #[test]
-    fn header_extended_manufacturer() {
+    fn extended_manufacturer() {
         let message = Message::ManufacturerExclusive(
             Manufacturer::from_id(ManufacturerId::Extended([0x00, 0x00, 0x01])),
             vec![],
