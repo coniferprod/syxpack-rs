@@ -20,11 +20,16 @@ pub const NON_REAL_TIME: u8 = 0x7e;
 /// Universal real-time SysEx message indicator.
 pub const REAL_TIME: u8 = 0x7f;
 
-/// MIDI manufacturer ID. Either a single byte for standard or three bytes for extended IDs.
+/// Development/non-commercial SysEx manufacturer ID.
+pub const DEVELOPMENT: u8 = 0x7d;
+
+/// MIDI manufacturer ID. Either a single byte for standard IDs,
+/// three bytes for extended IDs, or Development (non-commercial).
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub enum ManufacturerId {
     Standard(u8),
     Extended([u8; 3]),
+    Development,
 }
 
 impl fmt::Display for ManufacturerId {
@@ -32,6 +37,7 @@ impl fmt::Display for ManufacturerId {
         let hex = match self {
             ManufacturerId::Standard(b) => format!("{:X}", b),
             ManufacturerId::Extended(bs) => format!("{:X} {:X} {:X} ", bs[0], bs[1], bs[2]),
+            ManufacturerId::Development => format!("{:X}", DEVELOPMENT),
         };
         write!(f, "{}", hex)
     }
@@ -45,7 +51,7 @@ pub enum UniversalKind {
 
 /// A MIDI System Exclusive message.
 pub enum Message {
-    Universal(UniversalKind, u8, u8),
+    Universal(UniversalKind, u8, u8, Vec<u8>),
     ManufacturerExclusive(Manufacturer, Vec<u8>),
 }
 
@@ -56,8 +62,8 @@ impl Message {
     }
 
     /// Creates a new universal SysEx message with the given sub-IDs.
-    pub fn new_universal(kind: UniversalKind, sub_id1: u8, sub_id2: u8) -> Self {
-        Message::Universal(kind, sub_id1, sub_id2)
+    pub fn new_universal(kind: UniversalKind, sub_id1: u8, sub_id2: u8, payload: Vec<u8>) -> Self {
+        Message::Universal(kind, sub_id1, sub_id2, payload)
     }
 
     /// Converts the message into bytes for MIDI messaging.
@@ -65,13 +71,16 @@ impl Message {
         let mut result = Vec::<u8>::new();
 
         match self {
-            Message::Universal(kind, sub_id1, sub_id2) => {
+            Message::Universal(kind, sub_id1, sub_id2, payload) => {
+                result.push(INITIATOR);
                 result.push(match kind {
                     UniversalKind::NonRealTime => NON_REAL_TIME,
                     UniversalKind::RealTime => REAL_TIME,
                 });
                 result.push(*sub_id1);
                 result.push(*sub_id2);
+                result.extend(payload);
+                result.push(TERMINATOR);
             },
             Message::ManufacturerExclusive(manufacturer, payload) => {
                 result.push(INITIATOR);
@@ -103,6 +112,11 @@ pub struct Manufacturer {
 }
 
 impl Manufacturer {
+    /// Makes a manufacturer from its identifier.
+    ///
+    /// # Arguments
+    ///
+    /// * `id`- a member of the `ManufacturerId` enumeration
     pub fn from_id(id: ManufacturerId) -> Self {
         if let Some(manufacturer) = crate::MANUFACTURERS.get(&id) {
             Manufacturer {
@@ -120,6 +134,7 @@ impl Manufacturer {
     /// Converts the manufacturer into bytes for serializing the SysEx message.
     pub fn to_bytes(&self) -> Vec<u8> {
         match self.id {
+            ManufacturerId::Development => vec![DEVELOPMENT],
             ManufacturerId::Standard(b) => vec![b],
             ManufacturerId::Extended(bs) => vec![bs[0], bs[1], bs[2]],
         }
@@ -148,6 +163,7 @@ lazy_static! {
         map.insert(ManufacturerId::Standard(0x41), Manufacturer { id: ManufacturerId::Standard(0x41), display_name: "Roland".to_string(), canonical_name: "Roland Corporation".to_string(), group: ManufacturerGroup::Japanese });
         map.insert(ManufacturerId::Standard(0x42), Manufacturer { id: ManufacturerId::Standard(0x42), display_name: "KORG".to_string(), canonical_name: "Korg Inc.".to_string(), group: ManufacturerGroup::Japanese });
         map.insert(ManufacturerId::Standard(0x43), Manufacturer { id: ManufacturerId::Standard(0x43), display_name: "Yamaha".to_string(), canonical_name: "Yamaha Corporation".to_string(), group: ManufacturerGroup::Japanese });
+        map.insert(ManufacturerId::Development, Manufacturer { id: ManufacturerId::Development, display_name: "Development/Non-commercial".to_string(), canonical_name: "Development/Non-commercial".to_string(), group: ManufacturerGroup::Other });
         map
     };
 }
@@ -261,6 +277,16 @@ mod tests {
         );
         let message_bytes = message.to_bytes();
         assert_eq!(message_bytes, vec![0xF0, 0x00, 0x00, 0x01, 0xF7]);
+    }
+
+    #[test]
+    fn development_manufacturer() {
+        let message = Message::ManufacturerExclusive(
+            Manufacturer::from_id(ManufacturerId::Development),
+            vec![],
+        );
+        let message_bytes = message.to_bytes();
+        assert_eq!(message_bytes, vec![0xF0, 0x7D, 0xF7]);
     }
 
     #[test]
