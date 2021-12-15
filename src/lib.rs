@@ -238,6 +238,57 @@ impl Packed for Vec<u8> {
     }
 }
 
+fn high_nybble(b: u8) -> u8 {
+    (b & 0xf0) >> 4
+}
+
+fn low_nybble(b: u8) -> u8 {
+    b & 0x0f
+}
+
+fn nybbles_from_byte(b: u8) -> (u8, u8) {
+    (high_nybble(b), low_nybble(b))
+}
+
+fn byte_from_nybbles(high: u8, low: u8) -> u8 {
+    high << 4 | low
+}
+
+/// Make a new byte array from `data` with the bytes split into
+/// high and low nybbles.
+pub fn nybblify(data: Vec<u8>) -> Vec<u8> {
+    let mut result = Vec::<u8>::new();
+
+    for b in data {
+        let n = nybbles_from_byte(b);
+        result.push(n.0);
+        result.push(n.1);
+    }
+
+    result
+}
+
+/// Make a new byte array from `data` by combining adjacent bytes
+/// representing the high and low nybbles of each byte.
+pub fn denybblify(data: Vec<u8>) -> Vec<u8> {
+    assert_eq!(data.len() % 2, 0);  // length must be even
+
+    let mut result = Vec::<u8>::new();
+
+    let mut index = 0;
+    let mut offset = 0;
+    let count = data.len() / 2;
+
+    while index < count {
+        let b = byte_from_nybbles(data[offset], data[offset + 1]);
+        result.push(b);
+        index += 1;
+        offset += 2;
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,5 +362,19 @@ mod tests {
     #[test]
     fn test_short_unpacked() {
         assert_eq!(make_short_packed_test().unpacked(), make_short_unpacked_test());
+    }
+
+    #[test]
+    fn test_nybblify() {
+        let b = vec![0x01, 0x23, 0x45];
+        let nb = nybblify(b);
+        assert_eq!(nb, vec![0x00, 0x01, 0x02, 0x03, 0x04, 0x05]);
+    }
+
+    #[test]
+    fn test_denybblify() {
+        let b = vec![0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
+        let nb = denybblify(b);
+        assert_eq!(nb, vec![0x01, 0x23, 0x45]);
     }
 }
