@@ -1,6 +1,6 @@
 [package]
 name = "syxpack"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2018"
 authors = ["Jere Käpyaho <2261936+jerekapyaho@users.noreply.github.com>"]
 license = "MIT"

@@ -14,22 +14,23 @@ pub const INITIATOR: u8 = 0xf0;
 /// Manufacturer specific SysEx message terminator.
 pub const TERMINATOR: u8 = 0xf7;
 
+/// Development/non-commercial SysEx manufacturer ID.
+pub const DEVELOPMENT: u8 = 0x7d;
+
 /// Universal non-real-time SysEx message indicator.
 pub const NON_REAL_TIME: u8 = 0x7e;
 
 /// Universal real-time SysEx message indicator.
 pub const REAL_TIME: u8 = 0x7f;
 
-/// Development/non-commercial SysEx manufacturer ID.
-pub const DEVELOPMENT: u8 = 0x7d;
-
 /// MIDI manufacturer ID. Either a single byte for standard IDs,
 /// three bytes for extended IDs, or Development (non-commercial).
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum ManufacturerId {
     Standard(u8),
     Extended([u8; 3]),
     Development,
+    Unknown,
 }
 
 impl fmt::Display for ManufacturerId {
@@ -38,6 +39,7 @@ impl fmt::Display for ManufacturerId {
             ManufacturerId::Standard(b) => format!("{:X}", b),
             ManufacturerId::Extended(bs) => format!("{:X} {:X} {:X} ", bs[0], bs[1], bs[2]),
             ManufacturerId::Development => format!("{:X}", DEVELOPMENT),
+            ManufacturerId::Unknown => "?".to_string(),
         };
         write!(f, "{}", hex)
     }
@@ -52,13 +54,40 @@ pub enum UniversalKind {
 /// A MIDI System Exclusive message.
 pub enum Message {
     Universal(UniversalKind, u8, u8, Vec<u8>),
-    ManufacturerExclusive(Manufacturer, Vec<u8>),
+    ManufacturerSpecific(Manufacturer, Vec<u8>),
 }
 
 impl Message {
+    /// Creates a SysEx message based on the initial data bytes.
+    pub fn new(data: Vec<u8>) -> Self {
+        assert_eq!(data[0], INITIATOR);
+        let last_byte_index = data.len() - 1;
+        assert_eq!(data[last_byte_index], TERMINATOR);
+
+        match data[1] {
+            DEVELOPMENT => Message::new_manufacturer(
+                Manufacturer::from_id(ManufacturerId::Development),
+                data[2..last_byte_index].to_vec()),
+            NON_REAL_TIME => Message::new_universal(
+                UniversalKind::NonRealTime,
+                data[2], data[3],
+                data[4..last_byte_index].to_vec()),
+            REAL_TIME => Message::new_universal(
+                UniversalKind::RealTime,
+                data[2], data[3],
+                data[4..last_byte_index].to_vec()),
+            0x00 => Message::ManufacturerSpecific(
+                Manufacturer::from_id(ManufacturerId::Extended([data[1], data[2], data[3]])),
+                data[4..last_byte_index].to_vec()),
+            _ => Message::ManufacturerSpecific(
+                    Manufacturer::from_id(ManufacturerId::Standard(data[1])),
+                    data[2..last_byte_index].to_vec()),
+        }
+    }
+
     /// Creates a manufacturer-specific SysEx message.
-    pub fn new(manufacturer: Manufacturer, payload: Vec<u8>) -> Self {
-        Message::ManufacturerExclusive(manufacturer, payload)
+    pub fn new_manufacturer(manufacturer: Manufacturer, payload: Vec<u8>) -> Self {
+        Message::ManufacturerSpecific(manufacturer, payload)
     }
 
     /// Creates a new universal SysEx message with the given sub-IDs.
@@ -82,7 +111,7 @@ impl Message {
                 result.extend(payload);
                 result.push(TERMINATOR);
             },
-            Message::ManufacturerExclusive(manufacturer, payload) => {
+            Message::ManufacturerSpecific(manufacturer, payload) => {
                 result.push(INITIATOR);
                 result.extend(manufacturer.to_bytes());
                 result.extend(payload);
@@ -95,15 +124,16 @@ impl Message {
 }
 
 /// Group of manufacturer.
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum ManufacturerGroup {
     American,
     EuropeanOrOther,
     Japanese,
-    Other,
+    NotApplicable,  // used for Development/Non-commercial
 }
 
 /// MIDI equipment manufacturer.
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct Manufacturer {
     id: ManufacturerId,
     display_name: String,
@@ -127,7 +157,8 @@ impl Manufacturer {
             }
         }
         else {
-            panic!("Unknown manufacturer ID");
+            crate::MANUFACTURERS.get(&ManufacturerId::Unknown).unwrap().clone()
+            //panic!("Unknown manufacturer ID: {}", id);
         }
     }
 
@@ -137,6 +168,7 @@ impl Manufacturer {
             ManufacturerId::Development => vec![DEVELOPMENT],
             ManufacturerId::Standard(b) => vec![b],
             ManufacturerId::Extended(bs) => vec![bs[0], bs[1], bs[2]],
+            ManufacturerId::Unknown => panic!("Unknown manufacturer ID: {}", self.id),
         }
     }
 }
@@ -153,17 +185,20 @@ impl fmt::Display for Manufacturer {
 
 // Store the manufacturers and their information in a hashmap. Not complete yet!
 // The complete list can be found at https://www.midi.org/specifications-old/item/manufacturer-id-numbers.
-// It might be a good idea to scrape them from the website and auto-generate the hashmap code.
+// It might be a good idea to scrape them from the website and auto-generate the hashmap source code.
 lazy_static! {
     static ref MANUFACTURERS: HashMap<ManufacturerId, Manufacturer> = {
         let mut map = HashMap::new();
         map.insert(ManufacturerId::Standard(0x01), Manufacturer { id: ManufacturerId::Standard(0x01), display_name: "Sequential Circuits".to_string(), canonical_name: "Sequential Circuits".to_string(), group: ManufacturerGroup::American });
         map.insert(ManufacturerId::Extended([0x00, 0x00, 0x01]), Manufacturer { id: ManufacturerId::Extended([0x00, 0x00, 0x01]), display_name: "Time/Warner Interactive".to_string(), canonical_name: "Time/Warner Interactive".to_string(), group: ManufacturerGroup::American });
+        map.insert(ManufacturerId::Extended([0x00, 0x00, 0x0E]), Manufacturer { id: ManufacturerId::Extended([0x00, 0x00, 0x0E]), display_name: "Alesis".to_string(), canonical_name: "Alesis Studio Electronics".to_string(), group: ManufacturerGroup::American });
+        map.insert(ManufacturerId::Extended([0x00, 0x20, 0x29]), Manufacturer { id: ManufacturerId::Extended([0x00, 0x20, 0x29]), display_name: "Novation".to_string(), canonical_name: "Focusrite/Novation".to_string(), group: ManufacturerGroup::EuropeanOrOther });
         map.insert(ManufacturerId::Standard(0x40), Manufacturer { id: ManufacturerId::Standard(0x40), display_name: "Kawai".to_string(), canonical_name: "Kawai Musical Instruments MFG. CO. Ltd".to_string(), group: ManufacturerGroup::Japanese });
         map.insert(ManufacturerId::Standard(0x41), Manufacturer { id: ManufacturerId::Standard(0x41), display_name: "Roland".to_string(), canonical_name: "Roland Corporation".to_string(), group: ManufacturerGroup::Japanese });
         map.insert(ManufacturerId::Standard(0x42), Manufacturer { id: ManufacturerId::Standard(0x42), display_name: "KORG".to_string(), canonical_name: "Korg Inc.".to_string(), group: ManufacturerGroup::Japanese });
         map.insert(ManufacturerId::Standard(0x43), Manufacturer { id: ManufacturerId::Standard(0x43), display_name: "Yamaha".to_string(), canonical_name: "Yamaha Corporation".to_string(), group: ManufacturerGroup::Japanese });
-        map.insert(ManufacturerId::Development, Manufacturer { id: ManufacturerId::Development, display_name: "Development/Non-commercial".to_string(), canonical_name: "Development/Non-commercial".to_string(), group: ManufacturerGroup::Other });
+        map.insert(ManufacturerId::Development, Manufacturer { id: ManufacturerId::Development, display_name: "Development/Non-commercial".to_string(), canonical_name: "Development/Non-commercial".to_string(), group: ManufacturerGroup::NotApplicable });
+        map.insert(ManufacturerId::Unknown, Manufacturer { id: ManufacturerId::Unknown, display_name: "(unknown)".to_string(), canonical_name: "(unknown)".to_string(), group: ManufacturerGroup::NotApplicable });
         map
     };
 }
@@ -294,8 +329,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn new_message_manufacturer_standard() {
+        let data = vec![0xF0, 0x40, 0x00, 0x20, 0x00, 0x04, 0x00, 0x3F, 0xF7];
+        let message = Message::new(data);
+        if let Message::ManufacturerSpecific(manufacturer, _) = message {
+            assert_eq!(manufacturer.id, ManufacturerId::Standard(0x40));
+        }
+        else {
+            panic!("Expected a manufacturer-specific message with standard identifier");
+        }
+    }
+
+    #[test]
+    fn new_message_manufacturer_extended() {
+        let data = vec![0xF0, 0x00, 0x00, 0x0E, 0x00, 0x41, 0x63, 0x00, 0x5D, 0xF7];
+        let message = Message::new(data);
+        if let Message::ManufacturerSpecific(manufacturer, _) = message {
+            assert_eq!(manufacturer.id, ManufacturerId::Extended([0x00, 0x00, 0x0E]));
+        }
+        else {
+            panic!("Expected a manufacturer-specific message with extended identifier");
+        }
+    }
+
+    #[test]
     fn manufacturer_message() {
-        let message = Message::ManufacturerExclusive(
+        let message = Message::ManufacturerSpecific(
             Manufacturer::from_id(ManufacturerId::Standard(0x40)),  // Kawai ID
             vec![
                 0x00, // MIDI channel 1
@@ -312,7 +371,7 @@ mod tests {
 
     #[test]
     fn standard_manufacturer() {
-        let message = Message::ManufacturerExclusive(
+        let message = Message::ManufacturerSpecific(
             Manufacturer::from_id(ManufacturerId::Standard(0x43)),
             vec![],
         );
@@ -322,7 +381,7 @@ mod tests {
 
     #[test]
     fn extended_manufacturer() {
-        let message = Message::ManufacturerExclusive(
+        let message = Message::ManufacturerSpecific(
             Manufacturer::from_id(ManufacturerId::Extended([0x00, 0x00, 0x01])),
             vec![],
         );
@@ -332,7 +391,7 @@ mod tests {
 
     #[test]
     fn development_manufacturer() {
-        let message = Message::ManufacturerExclusive(
+        let message = Message::ManufacturerSpecific(
             Manufacturer::from_id(ManufacturerId::Development),
             vec![],
         );
