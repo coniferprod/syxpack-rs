@@ -135,10 +135,10 @@ pub enum ManufacturerGroup {
 /// MIDI equipment manufacturer.
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct Manufacturer {
-    id: ManufacturerId,
-    display_name: String,
-    canonical_name: String,
-    group: ManufacturerGroup,
+    pub id: ManufacturerId,
+    pub display_name: String,
+    pub canonical_name: String,
+    pub group: ManufacturerGroup,
 }
 
 impl Manufacturer {
