@@ -2,7 +2,6 @@
 //!
 //! `syxpack` is a collection of helpers for processing MIDI System Exclusive messages.
 
-use std::collections::HashMap;
 use std::fmt;
 use log::debug;
 use bit::BitIndex;
@@ -148,7 +147,7 @@ impl Manufacturer {
     ///
     /// * `id`- a member of the `ManufacturerId` enumeration
     pub fn from_id(id: ManufacturerId) -> Self {
-        if let Some(manufacturer) = crate::MANUFACTURERS.get(&id) {
+        if let Some(manufacturer) = crate::find_manufacturer(&id) {
             Manufacturer {
                 id: manufacturer.id,
                 display_name: manufacturer.display_name.clone(),
@@ -157,7 +156,7 @@ impl Manufacturer {
             }
         }
         else {
-            crate::MANUFACTURERS.get(&ManufacturerId::Unknown).unwrap().clone()
+            crate::find_manufacturer(&ManufacturerId::Unknown).unwrap().clone()
             //panic!("Unknown manufacturer ID: {}", id);
         }
     }
@@ -175,32 +174,39 @@ impl Manufacturer {
 
 impl fmt::Display for Manufacturer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let name = match crate::MANUFACTURERS.get(&self.id) {
-            Some(n) => n.display_name.clone(),
-            None => "(unknown)".to_string(),
-        };
-        write!(f, "{}", name)
+        write!(f, "{}", self.display_name)
     }
 }
 
-// Store the manufacturers and their information in a hashmap. Not complete yet!
+// Storing the manufacturers as a simple vector. There are only a couple of hundred of them,
+// so a simple linear search should be OK. The items should be unique, but if they are not,
+// it only means that only the first one is used.
 // The complete list can be found at https://www.midi.org/specifications-old/item/manufacturer-id-numbers.
-// It might be a good idea to scrape them from the website and auto-generate the hashmap source code.
+// It might be a good idea to scrape them from the website and auto-generate the vectore initialization source code.
 lazy_static! {
-    static ref MANUFACTURERS: HashMap<ManufacturerId, Manufacturer> = {
-        let mut map = HashMap::new();
-        map.insert(ManufacturerId::Standard(0x01), Manufacturer { id: ManufacturerId::Standard(0x01), display_name: "Sequential Circuits".to_string(), canonical_name: "Sequential Circuits".to_string(), group: ManufacturerGroup::American });
-        map.insert(ManufacturerId::Extended([0x00, 0x00, 0x01]), Manufacturer { id: ManufacturerId::Extended([0x00, 0x00, 0x01]), display_name: "Time/Warner Interactive".to_string(), canonical_name: "Time/Warner Interactive".to_string(), group: ManufacturerGroup::American });
-        map.insert(ManufacturerId::Extended([0x00, 0x00, 0x0E]), Manufacturer { id: ManufacturerId::Extended([0x00, 0x00, 0x0E]), display_name: "Alesis".to_string(), canonical_name: "Alesis Studio Electronics".to_string(), group: ManufacturerGroup::American });
-        map.insert(ManufacturerId::Extended([0x00, 0x20, 0x29]), Manufacturer { id: ManufacturerId::Extended([0x00, 0x20, 0x29]), display_name: "Novation".to_string(), canonical_name: "Focusrite/Novation".to_string(), group: ManufacturerGroup::EuropeanOrOther });
-        map.insert(ManufacturerId::Standard(0x40), Manufacturer { id: ManufacturerId::Standard(0x40), display_name: "Kawai".to_string(), canonical_name: "Kawai Musical Instruments MFG. CO. Ltd".to_string(), group: ManufacturerGroup::Japanese });
-        map.insert(ManufacturerId::Standard(0x41), Manufacturer { id: ManufacturerId::Standard(0x41), display_name: "Roland".to_string(), canonical_name: "Roland Corporation".to_string(), group: ManufacturerGroup::Japanese });
-        map.insert(ManufacturerId::Standard(0x42), Manufacturer { id: ManufacturerId::Standard(0x42), display_name: "KORG".to_string(), canonical_name: "Korg Inc.".to_string(), group: ManufacturerGroup::Japanese });
-        map.insert(ManufacturerId::Standard(0x43), Manufacturer { id: ManufacturerId::Standard(0x43), display_name: "Yamaha".to_string(), canonical_name: "Yamaha Corporation".to_string(), group: ManufacturerGroup::Japanese });
-        map.insert(ManufacturerId::Development, Manufacturer { id: ManufacturerId::Development, display_name: "Development/Non-commercial".to_string(), canonical_name: "Development/Non-commercial".to_string(), group: ManufacturerGroup::NotApplicable });
-        map.insert(ManufacturerId::Unknown, Manufacturer { id: ManufacturerId::Unknown, display_name: "(unknown)".to_string(), canonical_name: "(unknown)".to_string(), group: ManufacturerGroup::NotApplicable });
-        map
+    static ref ALL_MANUFACTURERS: Vec<Manufacturer> = {
+        vec![
+            Manufacturer { id: ManufacturerId::Standard(0x01), display_name: "Sequential Circuits".to_string(), canonical_name: "Sequential Circuits".to_string(), group: ManufacturerGroup::American },
+            Manufacturer { id: ManufacturerId::Extended([0x00, 0x00, 0x01]), display_name: "Time/Warner Interactive".to_string(), canonical_name: "Time/Warner Interactive".to_string(), group: ManufacturerGroup::American },
+            Manufacturer { id: ManufacturerId::Extended([0x00, 0x00, 0x0E]), display_name: "Alesis".to_string(), canonical_name: "Alesis Studio Electronics".to_string(), group: ManufacturerGroup::American },
+            Manufacturer { id: ManufacturerId::Extended([0x00, 0x20, 0x29]), display_name: "Novation".to_string(), canonical_name: "Focusrite/Novation".to_string(), group: ManufacturerGroup::EuropeanOrOther },
+            Manufacturer { id: ManufacturerId::Standard(0x40), display_name: "Kawai".to_string(), canonical_name: "Kawai Musical Instruments MFG. CO. Ltd".to_string(), group: ManufacturerGroup::Japanese },
+            Manufacturer { id: ManufacturerId::Standard(0x41), display_name: "Roland".to_string(), canonical_name: "Roland Corporation".to_string(), group: ManufacturerGroup::Japanese },
+            Manufacturer { id: ManufacturerId::Standard(0x42), display_name: "KORG".to_string(), canonical_name: "Korg Inc.".to_string(), group: ManufacturerGroup::Japanese },
+            Manufacturer { id: ManufacturerId::Standard(0x43), display_name: "Yamaha".to_string(), canonical_name: "Yamaha Corporation".to_string(), group: ManufacturerGroup::Japanese },
+            Manufacturer { id: ManufacturerId::Development, display_name: "Development/Non-commercial".to_string(), canonical_name: "Development/Non-commercial".to_string(), group: ManufacturerGroup::NotApplicable },
+            Manufacturer { id: ManufacturerId::Unknown, display_name: "(unknown)".to_string(), canonical_name: "(unknown)".to_string(), group: ManufacturerGroup::NotApplicable },
+        ]
     };
+}
+
+/// Find a manufacturer based on its identifier.
+///
+/// # Arguments
+///
+/// * `id`- a member of the `ManufacturerId` enumeration
+pub fn find_manufacturer(id: &ManufacturerId) -> Option<&'static Manufacturer> {
+    ALL_MANUFACTURERS.iter().find(|x| x.id == *id)
 }
 
 /// Packed format of SysEx data used by KORG.
@@ -403,6 +409,14 @@ mod tests {
     fn manufacturer_display_name() {
         let manufacturer = Manufacturer::from_id(ManufacturerId::Standard(0x43));
         assert_eq!(format!("{}", manufacturer), "Yamaha");
+    }
+
+    #[test]
+    fn test_find_manufacturer() {
+        match find_manufacturer(&ManufacturerId::Standard(0x40)) {
+            Some(manufacturer) => assert_eq!(manufacturer.id, ManufacturerId::Standard(0x40)),
+            None => panic!("Manufacturer not found")
+        };
     }
 
     fn make_short_unpacked_test() -> Vec<u8> {
