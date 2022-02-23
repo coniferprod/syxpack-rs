@@ -57,6 +57,21 @@ pub enum Message {
     ManufacturerSpecific(Manufacturer, Vec<u8>),
 }
 
+/// Returns the number of System Exclusive messages in this vector,
+/// based on the count of terminator bytes.
+pub fn message_count(data: Vec<u8>) -> usize {
+    data.iter().filter(|&n| *n == TERMINATOR).count()
+}
+
+/// Splits the vector by the terminator byte, including it.
+pub fn split_messages(data: Vec<u8>) -> Vec<Vec<u8>> {
+    let mut parts: Vec<Vec<u8>> = Vec::new();
+    for part in data.split_inclusive(|&n| n == TERMINATOR) {
+        parts.push(part.to_vec());
+    }
+    parts
+}
+
 impl Message {
     /// Creates a SysEx message based on the initial data bytes.
     pub fn new(data: Vec<u8>) -> Self {
