@@ -1,6 +1,6 @@
 [package]
 name = "syxpack"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2018"
 authors = ["Jere Käpyaho <2261936+jerekapyaho@users.noreply.github.com>"]
 license = "MIT"
@@ -11,5 +11,6 @@ repository = "https://github.com/coniferprod/syxpack-rs"
 
 [dependencies]
 lazy_static = "1.4.0"
-log = "0.4.14"
+log = "0.4.17"
 bit = "0.1.1"
+hex = "0.4.3"
