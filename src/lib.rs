@@ -3,6 +3,7 @@
 //! `syxpack` is a collection of helpers for processing MIDI System Exclusive messages.
 
 use std::fmt;
+use std::collections::HashMap;
 use log::debug;
 use bit::BitIndex;
 use lazy_static::lazy_static;
@@ -30,6 +31,21 @@ pub enum ManufacturerId {
     Extended([u8; 3]),
     Development,
     Unknown,
+}
+
+impl ManufacturerId {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            ManufacturerId::Development => vec![DEVELOPMENT],
+            ManufacturerId::Standard(b) => vec![*b],
+            ManufacturerId::Extended(bs) => vec![bs[0], bs[1], bs[2]],
+            ManufacturerId::Unknown => panic!("Unknown manufacturer ID: {}", self),
+        }
+    }
+
+    pub fn to_hex(&self) -> String {
+        hex::encode(self.to_bytes()).to_uppercase()
+    }
 }
 
 impl fmt::Display for ManufacturerId {
@@ -140,19 +156,18 @@ impl Message {
 /// Group of manufacturer.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum ManufacturerGroup {
-    American,
-    EuropeanOrOther,
+    Unknown,
+    Development,
+    NorthAmerican,
+    EuropeanAndOther,
     Japanese,
-    NotApplicable,  // used for Development/Non-commercial
 }
 
 /// MIDI equipment manufacturer.
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct Manufacturer {
     pub id: ManufacturerId,
-    pub display_name: String,
-    pub canonical_name: String,
-    pub group: ManufacturerGroup,
+    pub name: String,
 }
 
 impl Manufacturer {
@@ -165,9 +180,7 @@ impl Manufacturer {
         if let Some(manufacturer) = crate::find_manufacturer(&id) {
             Manufacturer {
                 id: manufacturer.id,
-                display_name: manufacturer.display_name.clone(),
-                canonical_name: manufacturer.canonical_name.clone(),
-                group: manufacturer.group,
+                name: manufacturer.name.clone(),
             }
         }
         else {
@@ -185,43 +198,201 @@ impl Manufacturer {
             ManufacturerId::Unknown => panic!("Unknown manufacturer ID: {}", self.id),
         }
     }
+
+    /// Gets the group of this manufacturer based on the identifier.
+    pub fn group(&self) -> ManufacturerGroup {
+        match self.id {
+            ManufacturerId::Development => ManufacturerGroup::Development,
+            ManufacturerId::Standard(b) => {
+                if (0x01..0x40).contains(&b) {
+                    ManufacturerGroup::NorthAmerican
+                }
+                else if (0x40..0x60).contains(&b) {
+                    ManufacturerGroup::Japanese
+                }
+                else {
+                    ManufacturerGroup::EuropeanAndOther
+                }
+            },
+            ManufacturerId::Extended(bs) => {
+                if (bs[1] & (1 << 6)) != 0 {  // 0x4x
+                    ManufacturerGroup::Japanese
+                }
+                else if (bs[1] & (1 << 5)) != 0 { // 0x2x
+                    ManufacturerGroup::EuropeanAndOther
+                }
+                else {
+                    ManufacturerGroup::NorthAmerican
+                }
+            }
+            _ => ManufacturerGroup::Unknown,
+        }
+    }
 }
 
 impl fmt::Display for Manufacturer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.display_name)
+        write!(f, "{}", self.name)
     }
 }
 
-// Storing the manufacturers as a simple vector. There are only a couple of hundred of them,
-// so a simple linear search should be OK. The items should be unique, but if they are not,
-// it only means that only the first one is used.
-// The complete list can be found at https://www.midi.org/specifications-old/item/manufacturer-id-numbers.
-// It might be a good idea to scrape them from the website and auto-generate the vectore initialization source code.
 lazy_static! {
-    static ref ALL_MANUFACTURERS: Vec<Manufacturer> = {
-        vec![
-            Manufacturer { id: ManufacturerId::Standard(0x01), display_name: "Sequential Circuits".to_string(), canonical_name: "Sequential Circuits".to_string(), group: ManufacturerGroup::American },
-            Manufacturer { id: ManufacturerId::Extended([0x00, 0x00, 0x01]), display_name: "Time/Warner Interactive".to_string(), canonical_name: "Time/Warner Interactive".to_string(), group: ManufacturerGroup::American },
-            Manufacturer { id: ManufacturerId::Extended([0x00, 0x00, 0x0E]), display_name: "Alesis".to_string(), canonical_name: "Alesis Studio Electronics".to_string(), group: ManufacturerGroup::American },
-            Manufacturer { id: ManufacturerId::Extended([0x00, 0x20, 0x29]), display_name: "Novation".to_string(), canonical_name: "Focusrite/Novation".to_string(), group: ManufacturerGroup::EuropeanOrOther },
-            Manufacturer { id: ManufacturerId::Standard(0x40), display_name: "Kawai".to_string(), canonical_name: "Kawai Musical Instruments MFG. CO. Ltd".to_string(), group: ManufacturerGroup::Japanese },
-            Manufacturer { id: ManufacturerId::Standard(0x41), display_name: "Roland".to_string(), canonical_name: "Roland Corporation".to_string(), group: ManufacturerGroup::Japanese },
-            Manufacturer { id: ManufacturerId::Standard(0x42), display_name: "KORG".to_string(), canonical_name: "Korg Inc.".to_string(), group: ManufacturerGroup::Japanese },
-            Manufacturer { id: ManufacturerId::Standard(0x43), display_name: "Yamaha".to_string(), canonical_name: "Yamaha Corporation".to_string(), group: ManufacturerGroup::Japanese },
-            Manufacturer { id: ManufacturerId::Development, display_name: "Development/Non-commercial".to_string(), canonical_name: "Development/Non-commercial".to_string(), group: ManufacturerGroup::NotApplicable },
-            Manufacturer { id: ManufacturerId::Unknown, display_name: "(unknown)".to_string(), canonical_name: "(unknown)".to_string(), group: ManufacturerGroup::NotApplicable },
-        ]
+    static ref MANUFACTURER_NAMES: HashMap<&'static str, &'static str> = {
+        HashMap::from([
+            ("01", "Sequential Circuits"),
+            ("02", "IDP"),
+            ("03", "Voyetra Turtle Beach, Inc."),
+            ("04", "Moog Music"),
+            ("05", "Passport Designs"),
+            ("06", "Lexicon Inc."),
+            ("07", "Kurzweil / Young Chang"),
+            ("08", "Fender"),
+            ("09", "MIDI9"),
+            ("0A", "AKG Acoustics"),
+            ("0B", "Voyce Music"),
+            ("0C", "WaveFrame (Timeline)"),
+            ("0D", "ADA Signal Processors, Inc."),
+            ("0E", "Garfield Electronics"),
+            ("0F", "Ensoniq"),
+            ("10", "Oberheim / Gibson Labs"),
+            ("11", "Apple"),
+            ("12", "Grey Matter Response"),
+            ("13", "Digidesign Inc."),
+            ("14", "Palmtree Instruments"),
+            ("15", "JLCooper Electronics"),
+            ("16", "Lowrey Organ Company"),
+            ("17", "Adams-Smith"),
+            ("18", "E-mu"),
+            ("19", "Harmony Systems"),
+            ("1A", "ART"),
+            ("1B", "Baldwin"),
+            ("1C", "Eventide"),
+            ("1D", "Inventronics"),
+            ("1E", "Key Concepts"),
+            ("1F", "Clarity"),
+            ("20", "Passac"),
+            ("21", "Proel Labs (SIEL)"),
+            ("22", "Synthaxe (UK)"),
+            ("23", "Stepp"),
+            ("24", "Hohner"),
+            ("25", "Twister"),
+            ("26", "Ketron s.r.l."),
+            ("27", "Jellinghaus MS"),
+            ("28", "Southworth Music Systems"),
+            ("29", "PPG (Germany)"),
+            ("2A", "JEN"),
+            ("2B", "Solid State Logic Organ Systems"),
+            ("2C", "Audio Veritrieb-P. Struven"),
+            ("2D", "Neve"),
+            ("2E", "Soundtracs Ltd."),
+            ("2F", "Elka"),
+            ("30", "Dynacord"),
+            ("31", "Viscount International Spa (Intercontinental Electronics)"),
+            ("32", "Drawmer"),
+            ("33", "Clavia Digital Instruments"),
+            ("34", "Audio Architecture"),
+            ("35", "Generalmusic Corp SpA"),
+            ("36", "Cheetah Marketing"),
+            ("37", "C.T.M."),
+            ("38", "Simmons UK"),
+            ("39", "Soundcraft Electronics"),
+            ("3A", "Steinberg Media Technologies GmbH"),
+            ("3B", "Wersi Gmbh"),
+            ("3C", "AVAB Niethammer AB"),
+            ("3D", "Digigram"),
+            ("3E", "Waldorf Electronics GmbH"),
+            ("3F", "Quasimidi"),
+
+            ("000001", "Time/Warner Interactive"),
+            ("000002", "Advanced Gravis Comp. Tech Ltd."),
+            ("000003", "Media Vision"),
+            ("000004", "Dornes Research Group"),
+            ("000005", "K-Muse"),
+            ("000006", "Stypher"),
+            ("000007", "Digital Music Corp."),
+            ("000008", "IOTA Systems"),
+            ("000009", "New England Digital"),
+            ("00000A", "Artisyn"),
+            ("00000B", "IVL Technologies Ltd."),
+            ("00000C", "Southern Music Systems"),
+            ("00000D", "Lake Butler Sound Company"),
+            ("00000E", "Alesis Studio Electronics"),
+            ("00000F", "Sound Creation"),
+            ("000010", "DOD Electronics Corp."),
+            ("000011", "Studer-Editech"),
+            ("000012", "Sonus"),
+            ("000013", "Temporal Acuity Products"),
+            ("000014", "Perfect Fretworks"),
+            ("000015", "KAT Inc."),
+
+            // European & Other Group
+            ("002000", "Dream SAS"),
+            ("002001", "Strand Lighting"),
+            ("002002", "Amek Div of Harman Industries"),
+            ("002003", "Casa Di Risparmio Di Loreto"),
+            ("002004", "Böhm electronic GmbH"),
+            ("002005", "Syntec Digital Audio"),
+            ("002006", "Trident Audio Developments"),
+            ("002007", "Real World Studio"),
+            ("002008", "Evolution Synthesis, Ltd"),
+            ("002009", "Yes Technology"),
+            ("00200A", "Audiomatica"),
+            ("00200B", "Bontempi SpA (Sigma)"),
+            ("00200C", "F.B.T. Elettronica SpA"),
+
+            ("002029", "Focusrite/Novation"),
+
+            ("40", "Kawai Musical Instruments MFG. CO. Ltd"),
+            ("41", "Roland Corporation"),
+            ("42", "Korg Inc."),
+            ("43", "Yamaha"),
+            ("44", "Casio Computer Co. Ltd"),
+            // 0x45 is not assigned
+            ("46", "Kamiya Studio Co. Ltd"),
+            ("47", "Akai Electric Co. Ltd."),
+            ("48", "Victor Company of Japan, Ltd."),
+            ("4B", "Fujitsu Limited"),
+            ("4C", "Sony Corporation"),
+            ("4E", "Teac Corporation"),
+            ("50", "Matsushita Electric Industrial Co. , Ltd"),
+            ("51", "Fostex Corporation"),
+            ("52", "Zoom Corporation"),
+            ("54", "Matsushita Communication Industrial Co., Ltd."),
+            ("55", "Suzuki Musical Instruments MFG. Co., Ltd."),
+            ("56", "Fuji Sound Corporation Ltd."),
+            ("57", "Acoustic Technical Laboratory, Inc."),
+            // 58h is not assigned
+            ("59", "Faith, Inc."),
+            ("5A", "Internet Corporation"),
+            // 5Bh is not assigned
+            ("5C", "Seekers Co. Ltd."),
+            // 5Dh and 5Eh are not assigned
+            ("5F", "SD Card Association"),
+
+            ("004000", "Crimson Technology Inc."),
+            ("004001", "Softbank Mobile Corp"),
+            ("004003", "D&M Holdings Inc."),
+            ("004004", "Xing Inc."),
+            ("004005", "Alpha Theta Corporation"),
+            ("004006", "Pioneer Corporation"),
+            ("004007", "Slik Corporation"),
+        ])
     };
 }
 
-/// Find a manufacturer based on its identifier.
-///
-/// # Arguments
-///
-/// * `id`- a member of the `ManufacturerId` enumeration
-pub fn find_manufacturer(id: &ManufacturerId) -> Option<&'static Manufacturer> {
-    ALL_MANUFACTURERS.iter().find(|x| x.id == *id)
+pub fn find_manufacturer(id: &ManufacturerId) -> Option<Manufacturer> {
+    let hex_id = id.to_hex();
+
+    match id {
+        ManufacturerId::Unknown => None,
+        ManufacturerId::Development => Some(Manufacturer {
+            id: ManufacturerId::Development, name: "Development/Non-commercial".to_string()
+        }),
+        _ => match MANUFACTURER_NAMES.get(&*hex_id) {
+            Some(n) => Some(Manufacturer { id: *id, name: n.to_string() }),
+            None => None,
+        }
+    }
 }
 
 /// Packed format of SysEx data used by KORG.
