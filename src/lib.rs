@@ -465,6 +465,13 @@ impl Packed for Vec<u8> {
     }
 }
 
+/// The order of nybbles in a byte.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum NybbleOrder {
+    HighFirst,
+    LowFirst
+}
+
 fn high_nybble(b: u8) -> u8 {
     (b & 0xf0) >> 4
 }
@@ -482,14 +489,20 @@ fn byte_from_nybbles(high: u8, low: u8) -> u8 {
 }
 
 /// Make a new byte array from `data` with the bytes split into
-/// high and low nybbles.
-pub fn nybblify(data: Vec<u8>) -> Vec<u8> {
+/// high and low nybbles. The `order` argument determines
+/// which one comes first.
+pub fn nybblify(data: Vec<u8>, order: NybbleOrder) -> Vec<u8> {
     let mut result = Vec::<u8>::new();
 
     for b in data {
         let n = nybbles_from_byte(b);
-        result.push(n.0);
-        result.push(n.1);
+        if order == NybbleOrder::HighFirst {
+            result.push(n.0);
+            result.push(n.1);
+        } else {
+            result.push(n.1);
+            result.push(n.0);
+        }
     }
 
     result
@@ -497,7 +510,8 @@ pub fn nybblify(data: Vec<u8>) -> Vec<u8> {
 
 /// Make a new byte array from `data` by combining adjacent bytes
 /// representing the high and low nybbles of each byte.
-pub fn denybblify(data: Vec<u8>) -> Vec<u8> {
+/// The `order` argument determines which one comes first.
+pub fn denybblify(data: Vec<u8>, order: NybbleOrder) -> Vec<u8> {
     assert_eq!(data.len() % 2, 0);  // length must be even
 
     let mut result = Vec::<u8>::new();
@@ -507,7 +521,13 @@ pub fn denybblify(data: Vec<u8>) -> Vec<u8> {
     let count = data.len() / 2;
 
     while index < count {
-        let b = byte_from_nybbles(data[offset], data[offset + 1]);
+        let high = data[offset];
+        let low = data[offset + 1];
+        let b = if order == NybbleOrder::HighFirst {
+            byte_from_nybbles(high, low)
+        } else {
+            byte_from_nybbles(low, high)
+        };
         result.push(b);
         index += 1;
         offset += 2;
@@ -626,14 +646,28 @@ mod tests {
     #[test]
     fn test_nybblify() {
         let b = vec![0x01, 0x23, 0x45];
-        let nb = nybblify(b);
+        let nb = nybblify(b, NybbleOrder::HighFirst);
         assert_eq!(nb, vec![0x00, 0x01, 0x02, 0x03, 0x04, 0x05]);
+    }
+
+    #[test]
+    fn test_nybblify_flipped() {
+        let b = vec![0x57, 0x61, 0x76];
+        let nb = nybblify(b, NybbleOrder::LowFirst);
+        assert_eq!(nb, vec![0x07, 0x05, 0x01, 0x06, 0x06, 0x07]);
     }
 
     #[test]
     fn test_denybblify() {
         let b = vec![0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
-        let nb = denybblify(b);
+        let nb = denybblify(b, NybbleOrder::HighFirst);
         assert_eq!(nb, vec![0x01, 0x23, 0x45]);
+    }
+
+    #[test]
+    fn test_denybblify_flipped() {
+        let b = vec![0x07, 0x05, 0x01, 0x06, 0x06, 0x07];
+        let nb = denybblify(b, NybbleOrder::LowFirst);
+        assert_eq!(nb, vec![0x57, 0x61, 0x76]);
     }
 }
