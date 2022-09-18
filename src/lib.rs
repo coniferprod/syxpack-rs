@@ -23,40 +23,89 @@ pub const NON_REAL_TIME: u8 = 0x7e;
 /// Universal real-time SysEx message indicator.
 pub const REAL_TIME: u8 = 0x7f;
 
-/// MIDI manufacturer ID. Either a single byte for standard IDs,
+/// MIDI manufacturer. The ID is either a single byte for standard IDs,
 /// three bytes for extended IDs, or Development (non-commercial).
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub enum ManufacturerId {
+pub enum Manufacturer {
     Standard(u8),
     Extended([u8; 3]),
     Development,
-    Unknown,
 }
 
-impl ManufacturerId {
+impl Manufacturer {
+    pub fn new(data: Vec<u8>) -> Self {
+        if data[0] == DEVELOPMENT {
+            Manufacturer::Development
+        }
+        else {
+            if data[0] == 0x00 {
+                Manufacturer::Extended([data[0], data[1], data[2]])
+            }
+            else {
+                Manufacturer::Standard(data[0])
+            }
+        }
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
-            ManufacturerId::Development => vec![DEVELOPMENT],
-            ManufacturerId::Standard(b) => vec![*b],
-            ManufacturerId::Extended(bs) => vec![bs[0], bs[1], bs[2]],
-            ManufacturerId::Unknown => panic!("Unknown manufacturer ID: {}", self),
+            Manufacturer::Development => vec![DEVELOPMENT],
+            Manufacturer::Standard(b) => vec![*b],
+            Manufacturer::Extended(bs) => vec![bs[0], bs[1], bs[2]],
         }
     }
 
     pub fn to_hex(&self) -> String {
         hex::encode(self.to_bytes()).to_uppercase()
     }
+
+    pub fn name(&self) -> String {
+        if *self == Manufacturer::Development {
+            return "Development / Non-commercial".to_string()
+        }
+
+        let hex_id = self.to_hex();
+        if let Some(n) = MANUFACTURER_NAMES.get(&*hex_id) {
+            n.to_string()
+        }
+        else {
+            "Unknown manufacturer".to_string()
+        }
+    }
+
+    /// Gets the group of this manufacturer based on the identifier.
+    pub fn group(&self) -> ManufacturerGroup {
+        match self {
+            Manufacturer::Development => ManufacturerGroup::Development,
+            Manufacturer::Standard(b) => {
+                if (0x01..0x40).contains(b) {
+                    ManufacturerGroup::NorthAmerican
+                }
+                else if (0x40..0x60).contains(b) {
+                    ManufacturerGroup::Japanese
+                }
+                else {
+                    ManufacturerGroup::EuropeanAndOther
+                }
+            },
+            Manufacturer::Extended(bs) => {
+                if (bs[1] & (1 << 6)) != 0 {  // 0x4x
+                    ManufacturerGroup::Japanese
+                }
+                else if (bs[1] & (1 << 5)) != 0 { // 0x2x
+                    ManufacturerGroup::EuropeanAndOther
+                }
+                else {
+                    ManufacturerGroup::NorthAmerican
+                }
+            }
+        }
+    }
 }
 
-impl fmt::Display for ManufacturerId {
+impl fmt::Display for Manufacturer {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let hex = match self {
-            ManufacturerId::Standard(b) => format!("{:X}", b),
-            ManufacturerId::Extended(bs) => format!("{:X} {:X} {:X} ", bs[0], bs[1], bs[2]),
-            ManufacturerId::Development => format!("{:X}", DEVELOPMENT),
-            ManufacturerId::Unknown => "?".to_string(),
-        };
-        write!(f, "{}", hex)
+        write!(f, "{}", self.name())
     }
 }
 
@@ -96,7 +145,7 @@ impl Message {
 
         match data[1] {
             DEVELOPMENT => Message::new_manufacturer(
-                Manufacturer::from_id(ManufacturerId::Development),
+                Manufacturer::Development,
                 data[2..last_byte_index].to_vec()),
             NON_REAL_TIME => Message::new_universal(
                 UniversalKind::NonRealTime,
@@ -107,10 +156,10 @@ impl Message {
                 data[2], data[3],
                 data[4..last_byte_index].to_vec()),
             0x00 => Message::ManufacturerSpecific(
-                Manufacturer::from_id(ManufacturerId::Extended([data[1], data[2], data[3]])),
+                Manufacturer::Extended([data[1], data[2], data[3]]),
                 data[4..last_byte_index].to_vec()),
             _ => Message::ManufacturerSpecific(
-                    Manufacturer::from_id(ManufacturerId::Standard(data[1])),
+                    Manufacturer::Standard(data[1]),
                     data[2..last_byte_index].to_vec()),
         }
     }
@@ -156,84 +205,10 @@ impl Message {
 /// Group of manufacturer.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum ManufacturerGroup {
-    Unknown,
     Development,
     NorthAmerican,
     EuropeanAndOther,
     Japanese,
-}
-
-/// MIDI equipment manufacturer.
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub struct Manufacturer {
-    pub id: ManufacturerId,
-    pub name: String,
-}
-
-impl Manufacturer {
-    /// Makes a manufacturer from its identifier.
-    ///
-    /// # Arguments
-    ///
-    /// * `id`- a member of the `ManufacturerId` enumeration
-    pub fn from_id(id: ManufacturerId) -> Self {
-        if let Some(manufacturer) = crate::find_manufacturer(&id) {
-            Manufacturer {
-                id: manufacturer.id,
-                name: manufacturer.name.clone(),
-            }
-        }
-        else {
-            crate::find_manufacturer(&ManufacturerId::Unknown).unwrap().clone()
-            //panic!("Unknown manufacturer ID: {}", id);
-        }
-    }
-
-    /// Converts the manufacturer into bytes for serializing the SysEx message.
-    pub fn to_bytes(&self) -> Vec<u8> {
-        match self.id {
-            ManufacturerId::Development => vec![DEVELOPMENT],
-            ManufacturerId::Standard(b) => vec![b],
-            ManufacturerId::Extended(bs) => vec![bs[0], bs[1], bs[2]],
-            ManufacturerId::Unknown => panic!("Unknown manufacturer ID: {}", self.id),
-        }
-    }
-
-    /// Gets the group of this manufacturer based on the identifier.
-    pub fn group(&self) -> ManufacturerGroup {
-        match self.id {
-            ManufacturerId::Development => ManufacturerGroup::Development,
-            ManufacturerId::Standard(b) => {
-                if (0x01..0x40).contains(&b) {
-                    ManufacturerGroup::NorthAmerican
-                }
-                else if (0x40..0x60).contains(&b) {
-                    ManufacturerGroup::Japanese
-                }
-                else {
-                    ManufacturerGroup::EuropeanAndOther
-                }
-            },
-            ManufacturerId::Extended(bs) => {
-                if (bs[1] & (1 << 6)) != 0 {  // 0x4x
-                    ManufacturerGroup::Japanese
-                }
-                else if (bs[1] & (1 << 5)) != 0 { // 0x2x
-                    ManufacturerGroup::EuropeanAndOther
-                }
-                else {
-                    ManufacturerGroup::NorthAmerican
-                }
-            }
-            _ => ManufacturerGroup::Unknown,
-        }
-    }
-}
-
-impl fmt::Display for Manufacturer {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.name)
-    }
 }
 
 lazy_static! {
@@ -378,21 +353,6 @@ lazy_static! {
             ("004007", "Slik Corporation"),
         ])
     };
-}
-
-pub fn find_manufacturer(id: &ManufacturerId) -> Option<Manufacturer> {
-    let hex_id = id.to_hex();
-
-    match id {
-        ManufacturerId::Unknown => None,
-        ManufacturerId::Development => Some(Manufacturer {
-            id: ManufacturerId::Development, name: "Development/Non-commercial".to_string()
-        }),
-        _ => match MANUFACTURER_NAMES.get(&*hex_id) {
-            Some(n) => Some(Manufacturer { id: *id, name: n.to_string() }),
-            None => None,
-        }
-    }
 }
 
 /// Packed format of SysEx data used by KORG.
@@ -545,7 +505,7 @@ mod tests {
         let data = vec![0xF0, 0x40, 0x00, 0x20, 0x00, 0x04, 0x00, 0x3F, 0xF7];
         let message = Message::new(data);
         if let Message::ManufacturerSpecific(manufacturer, _) = message {
-            assert_eq!(manufacturer.id, ManufacturerId::Standard(0x40));
+            assert_eq!(manufacturer, Manufacturer::Standard(0x40));
         }
         else {
             panic!("Expected a manufacturer-specific message with standard identifier");
@@ -557,7 +517,7 @@ mod tests {
         let data = vec![0xF0, 0x00, 0x00, 0x0E, 0x00, 0x41, 0x63, 0x00, 0x5D, 0xF7];
         let message = Message::new(data);
         if let Message::ManufacturerSpecific(manufacturer, _) = message {
-            assert_eq!(manufacturer.id, ManufacturerId::Extended([0x00, 0x00, 0x0E]));
+            assert_eq!(manufacturer, Manufacturer::Extended([0x00, 0x00, 0x0E]));
         }
         else {
             panic!("Expected a manufacturer-specific message with extended identifier");
@@ -567,7 +527,7 @@ mod tests {
     #[test]
     fn manufacturer_message() {
         let message = Message::ManufacturerSpecific(
-            Manufacturer::from_id(ManufacturerId::Standard(0x40)),  // Kawai ID
+            Manufacturer::Standard(0x40),  // Kawai ID
             vec![
                 0x00, // MIDI channel 1
                 0x20, // one block data dump
@@ -584,7 +544,7 @@ mod tests {
     #[test]
     fn standard_manufacturer() {
         let message = Message::ManufacturerSpecific(
-            Manufacturer::from_id(ManufacturerId::Standard(0x43)),
+            Manufacturer::Standard(0x43),
             vec![],
         );
         let message_bytes = message.to_bytes();
@@ -594,7 +554,7 @@ mod tests {
     #[test]
     fn extended_manufacturer() {
         let message = Message::ManufacturerSpecific(
-            Manufacturer::from_id(ManufacturerId::Extended([0x00, 0x00, 0x01])),
+            Manufacturer::Extended([0x00, 0x00, 0x01]),
             vec![],
         );
         let message_bytes = message.to_bytes();
@@ -604,7 +564,7 @@ mod tests {
     #[test]
     fn development_manufacturer() {
         let message = Message::ManufacturerSpecific(
-            Manufacturer::from_id(ManufacturerId::Development),
+            Manufacturer::Development,
             vec![],
         );
         let message_bytes = message.to_bytes();
@@ -613,16 +573,8 @@ mod tests {
 
     #[test]
     fn manufacturer_display_name() {
-        let manufacturer = Manufacturer::from_id(ManufacturerId::Standard(0x43));
+        let manufacturer = Manufacturer::Standard(0x43);
         assert_eq!(format!("{}", manufacturer), "Yamaha");
-    }
-
-    #[test]
-    fn test_find_manufacturer() {
-        match find_manufacturer(&ManufacturerId::Standard(0x40)) {
-            Some(manufacturer) => assert_eq!(manufacturer.id, ManufacturerId::Standard(0x40)),
-            None => panic!("Manufacturer not found")
-        };
     }
 
     fn make_short_unpacked_test() -> Vec<u8> {
