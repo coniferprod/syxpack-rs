@@ -1,6 +1,6 @@
 [package]
 name = "syxpack"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2018"
 authors = ["Jere Käpyaho <2261936+jerekapyaho@users.noreply.github.com>"]
 license = "MIT"
@@ -17,3 +17,6 @@ hex = "0.4.3"
 
 [[bin]]
 name = "syxident"
+
+[[bin]]
+name = "syxsplit"
