@@ -1,9 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::io::prelude::*;
 use std::fs;
 use std::env;
 
-use syxpack::{Message, UniversalKind, message_count, split_messages};
+use syxpack::{message_count, split_messages};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -15,8 +15,6 @@ fn main() {
     }
 
     let path = Path::new(input_file);
-    let display = path.display();
-
     let mut f = fs::File::open(&input_file).expect("no file found");
 
     let mut buffer = Vec::new();
@@ -40,7 +38,7 @@ fn main() {
             }
             let mut file = fs::File::create(output_filename)
                 .expect("unable to create file");
-            file.write_all(message);
+            file.write_all(message).expect("unable to write file");
         }
     }
     else {

@@ -20,3 +20,6 @@ name = "syxident"
 
 [[bin]]
 name = "syxsplit"
+
+[[bin]]
+name = "syxextract"
