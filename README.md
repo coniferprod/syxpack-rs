@@ -13,7 +13,7 @@ technically the block between 0xF0 and 0xF7 could contain Timing Clock
 
 For simplicity, and because these other messages practically never occur
 in System Exclusive dumps from synthesizers, the SyxPack library only
-deals with System Exclusive messages as being strictly delmited by 0xF0 and 0xF7.
+deals with System Exclusive messages as being strictly delimited by 0xF0 and 0xF7.
 
 Some synthesizers pack multiple System Exclusive messages into the same
 dump. SyxPack assumes that the `Vec<u8>` passed to `Message::new` contains
