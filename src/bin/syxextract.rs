@@ -39,7 +39,6 @@ fn main() {
         },
         Message::Universal { payload, .. } => {
             let output_file = &args[2];
-
             let mut f = fs::File::create(&output_file).expect("unable to create file");
             f.write_all(&payload).expect("unable to write to file");
         }

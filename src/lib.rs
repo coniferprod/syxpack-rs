@@ -33,6 +33,7 @@ pub enum Manufacturer {
 }
 
 impl Manufacturer {
+    /// Creates a new manufacturer from System Exclusive bytes.
     pub fn new(data: Vec<u8>) -> Self {
         if data[0] == DEVELOPMENT {
             Manufacturer::Development
@@ -47,6 +48,7 @@ impl Manufacturer {
         }
     }
 
+    /// Gets the manufacturer System Exclusive bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
             Manufacturer::Development => vec![DEVELOPMENT],
@@ -55,10 +57,12 @@ impl Manufacturer {
         }
     }
 
+    /// Gets the manufacturer SysEx bytes as a hex string.
     pub fn to_hex(&self) -> String {
         hex::encode(self.to_bytes()).to_uppercase()
     }
 
+    /// Gets the name of this manufacturer.
     pub fn name(&self) -> String {
         if *self == Manufacturer::Development {
             return "Development / Non-commercial".to_string()
@@ -137,7 +141,7 @@ pub fn split_messages(data: Vec<u8>) -> Vec<Vec<u8>> {
 }
 
 impl Message {
-    /// Creates a SysEx message based on the initial data bytes.
+    /// Creates a new SysEx message based on the initial data bytes.
     pub fn new(data: Vec<u8>) -> Self {
         assert_eq!(data[0], INITIATOR);
         let last_byte_index = data.len() - 1;
@@ -362,7 +366,7 @@ pub trait Packed {
 }
 
 impl Packed for Vec<u8> {
-    /// Returns this vector in a packed format.
+    /// Returns this byte vector in a packed format.
     fn packed(&self) -> Vec<u8> {
         // Split the original vector into 7-byte chunks:
         let chunks = self.chunks(7);
