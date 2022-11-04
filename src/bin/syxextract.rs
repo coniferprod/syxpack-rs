@@ -3,7 +3,7 @@ use std::fs;
 use std::env;
 use std::path::{Path, PathBuf};
 
-use syxpack::{Message, UniversalKind, message_count, split_messages};
+use syxpack::{Message, message_count};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -21,15 +21,14 @@ fn main() {
     let mut buffer = Vec::new();
     f.read_to_end(&mut buffer).expect("unable to read file");
 
-    let all_messages: Vec<Message> = Vec::new();
     let count = message_count(buffer.to_vec());
-    if count >= 1 {
+    if count > 1 {
         println!("More than one System Exclusive message found. Please use syxsplit to separate them.");
         std::process::exit(1);
     }
 
-    match &all_messages[0] {
-        Message::ManufacturerSpecific(_, payload) => {
+    match Message::new(buffer.to_vec()) {
+        Message::ManufacturerSpecific { payload, .. } => {
             // At this point, the SysEx delimiters and the manufacturer byte(s)
             // have already been stripped off. What's left is the payload.
             // For example, if the original message was "F0 42 30 28 54 02 ... 5C F7",
@@ -38,7 +37,7 @@ fn main() {
             let mut f = fs::File::create(&output_file).expect("unable to create file");
             f.write_all(&payload).expect("unable to write to file");
         },
-        Message::Universal(_, _, _, payload) => {
+        Message::Universal { payload, .. } => {
             let output_file = &args[2];
 
             let mut f = fs::File::create(&output_file).expect("unable to create file");

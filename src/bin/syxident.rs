@@ -3,6 +3,13 @@ use std::fs;
 use std::env;
 use syxpack::{Message, UniversalKind, message_count, split_messages};
 
+fn read_file(name: &String) -> Vec<u8> {
+    let mut f = fs::File::open(&name).expect("no file found");
+    let mut buffer = Vec::new();
+    f.read_to_end(&mut buffer).expect("unable to read file");
+    buffer
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() < 2 {
@@ -11,9 +18,7 @@ fn main() {
     }
 
     let input_file = &args[1];
-    let mut f = fs::File::open(&input_file).expect("no file found");
-    let mut buffer = Vec::new();
-    f.read_to_end(&mut buffer).expect("unable to read file");
+    let buffer = read_file(input_file);
 
     let mut all_messages: Vec<Message> = Vec::new();
     let count = message_count(buffer.to_vec());
@@ -40,10 +45,10 @@ fn main() {
 
 fn identify(message: &Message) {
     match message {
-        Message::ManufacturerSpecific(manufacturer, payload) => {
+        Message::ManufacturerSpecific { manufacturer, payload } => {
             println!("Manufacturer: {}, payload = {} bytes", manufacturer, payload.len());
         },
-        Message::Universal(kind, sub_id1, sub_id2, payload) => {
+        Message::Universal { kind, sub_id1, sub_id2, payload } => {
             println!("Universal, kind: {:?}, {:X} {:X}, payload = {} bytes",
                 match kind {
                     UniversalKind::NonRealTime => "Non-Real-time",

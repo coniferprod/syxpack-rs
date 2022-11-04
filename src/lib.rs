@@ -117,8 +117,8 @@ pub enum UniversalKind {
 
 /// A MIDI System Exclusive message.
 pub enum Message {
-    Universal(UniversalKind, u8, u8, Vec<u8>),
-    ManufacturerSpecific(Manufacturer, Vec<u8>),
+    Universal { kind: UniversalKind, sub_id1: u8, sub_id2: u8, payload: Vec<u8> },
+    ManufacturerSpecific { manufacturer: Manufacturer, payload: Vec<u8> },
 }
 
 /// Returns the number of System Exclusive messages in this vector,
@@ -144,42 +144,42 @@ impl Message {
         assert_eq!(data[last_byte_index], TERMINATOR);
 
         match data[1] {
-            DEVELOPMENT => Message::new_manufacturer(
-                Manufacturer::Development,
-                data[2..last_byte_index].to_vec()),
-            NON_REAL_TIME => Message::new_universal(
-                UniversalKind::NonRealTime,
-                data[2], data[3],
-                data[4..last_byte_index].to_vec()),
-            REAL_TIME => Message::new_universal(
-                UniversalKind::RealTime,
-                data[2], data[3],
-                data[4..last_byte_index].to_vec()),
-            0x00 => Message::ManufacturerSpecific(
-                Manufacturer::Extended([data[1], data[2], data[3]]),
-                data[4..last_byte_index].to_vec()),
-            _ => Message::ManufacturerSpecific(
-                    Manufacturer::Standard(data[1]),
-                    data[2..last_byte_index].to_vec()),
+            DEVELOPMENT => Message::ManufacturerSpecific {
+                manufacturer: Manufacturer::Development,
+                payload: data[2..last_byte_index].to_vec()
+            },
+            NON_REAL_TIME => Message::Universal {
+                kind: UniversalKind::NonRealTime,
+                sub_id1: data[2],
+                sub_id2: data[3],
+                payload: data[4..last_byte_index].to_vec()
+            },
+            REAL_TIME => Message::Universal {
+                kind: UniversalKind::RealTime,
+                sub_id1: data[2],
+                sub_id2: data[3],
+                payload: data[4..last_byte_index].to_vec()
+            },
+            0x00 => Message::ManufacturerSpecific {
+                manufacturer: Manufacturer::Extended([data[1], data[2], data[3]]),
+                payload: data[4..last_byte_index].to_vec()
+            },
+            _ => Message::ManufacturerSpecific {
+                manufacturer: Manufacturer::Standard(data[1]),
+                payload: data[2..last_byte_index].to_vec()
+            },
         }
     }
 
-    /// Creates a manufacturer-specific SysEx message.
-    pub fn new_manufacturer(manufacturer: Manufacturer, payload: Vec<u8>) -> Self {
-        Message::ManufacturerSpecific(manufacturer, payload)
-    }
-
-    /// Creates a new universal SysEx message with the given sub-IDs.
-    pub fn new_universal(kind: UniversalKind, sub_id1: u8, sub_id2: u8, payload: Vec<u8>) -> Self {
-        Message::Universal(kind, sub_id1, sub_id2, payload)
-    }
+    // new_xxx variants for constructing messages are not needed,
+    // because you can just create a struct variant like an ordinary struct.
 
     /// Converts the message into bytes for MIDI messaging.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut result = Vec::<u8>::new();
 
         match self {
-            Message::Universal(kind, sub_id1, sub_id2, payload) => {
+            Message::Universal { kind, sub_id1, sub_id2, payload } => {
                 result.push(INITIATOR);
                 result.push(match kind {
                     UniversalKind::NonRealTime => NON_REAL_TIME,
@@ -190,7 +190,7 @@ impl Message {
                 result.extend(payload);
                 result.push(TERMINATOR);
             },
-            Message::ManufacturerSpecific(manufacturer, payload) => {
+            Message::ManufacturerSpecific { manufacturer, payload } => {
                 result.push(INITIATOR);
                 result.extend(manufacturer.to_bytes());
                 result.extend(payload);
@@ -504,7 +504,7 @@ mod tests {
     fn new_message_manufacturer_standard() {
         let data = vec![0xF0, 0x40, 0x00, 0x20, 0x00, 0x04, 0x00, 0x3F, 0xF7];
         let message = Message::new(data);
-        if let Message::ManufacturerSpecific(manufacturer, _) = message {
+        if let Message::ManufacturerSpecific { manufacturer, .. } = message {
             assert_eq!(manufacturer, Manufacturer::Standard(0x40));
         }
         else {
@@ -516,7 +516,7 @@ mod tests {
     fn new_message_manufacturer_extended() {
         let data = vec![0xF0, 0x00, 0x00, 0x0E, 0x00, 0x41, 0x63, 0x00, 0x5D, 0xF7];
         let message = Message::new(data);
-        if let Message::ManufacturerSpecific(manufacturer, _) = message {
+        if let Message::ManufacturerSpecific { manufacturer, .. } = message {
             assert_eq!(manufacturer, Manufacturer::Extended([0x00, 0x00, 0x0E]));
         }
         else {
@@ -526,9 +526,9 @@ mod tests {
 
     #[test]
     fn manufacturer_message() {
-        let message = Message::ManufacturerSpecific(
-            Manufacturer::Standard(0x40),  // Kawai ID
-            vec![
+        let message = Message::ManufacturerSpecific {
+            manufacturer: Manufacturer::Standard(0x40),  // Kawai ID
+            payload: vec![
                 0x00, // MIDI channel 1
                 0x20, // one block data dump
                 0x00, // "synthesizer group"
@@ -536,37 +536,37 @@ mod tests {
                 0x00, // internal patch
                 0x3F, // patch slot D-16
             ],
-        );
+        };
         let message_bytes = message.to_bytes();
         assert_eq!(message_bytes, vec![0xF0, 0x40, 0x00, 0x20, 0x00, 0x04, 0x00, 0x3F, 0xF7]);
     }
 
     #[test]
     fn standard_manufacturer() {
-        let message = Message::ManufacturerSpecific(
-            Manufacturer::Standard(0x43),
-            vec![],
-        );
+        let message = Message::ManufacturerSpecific {
+            manufacturer: Manufacturer::Standard(0x43),
+            payload: vec![],
+        };
         let message_bytes = message.to_bytes();
         assert_eq!(message_bytes, vec![0xF0, 0x43, 0xF7]);
     }
 
     #[test]
     fn extended_manufacturer() {
-        let message = Message::ManufacturerSpecific(
-            Manufacturer::Extended([0x00, 0x00, 0x01]),
-            vec![],
-        );
+        let message = Message::ManufacturerSpecific {
+            manufacturer: Manufacturer::Extended([0x00, 0x00, 0x01]),
+            payload: vec![],
+        };
         let message_bytes = message.to_bytes();
         assert_eq!(message_bytes, vec![0xF0, 0x00, 0x00, 0x01, 0xF7]);
     }
 
     #[test]
     fn development_manufacturer() {
-        let message = Message::ManufacturerSpecific(
-            Manufacturer::Development,
-            vec![],
-        );
+        let message = Message::ManufacturerSpecific {
+            manufacturer: Manufacturer::Development,
+            payload: vec![],
+        };
         let message_bytes = message.to_bytes();
         assert_eq!(message_bytes, vec![0xF0, 0x7D, 0xF7]);
     }
