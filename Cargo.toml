@@ -1,6 +1,6 @@
 [package]
 name = "syxpack"
-version = "0.8.0"
+version = "0.9.0"
 edition = "2018"
 authors = ["Jere Käpyaho <2261936+jerekapyaho@users.noreply.github.com>"]
 license = "MIT"
@@ -14,6 +14,7 @@ lazy_static = "1.4.0"
 log = "0.4.17"
 bit = "0.1.1"
 hex = "0.4.3"
+md5 = "0.7.0"
 
 [[bin]]
 name = "syxident"
@@ -23,3 +24,6 @@ name = "syxsplit"
 
 [[bin]]
 name = "syxextract"
+
+[[bin]]
+name = "syxsections"

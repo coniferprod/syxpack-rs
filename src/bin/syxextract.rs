@@ -28,7 +28,7 @@ fn main() {
     }
 
     match Message::new(buffer.to_vec()) {
-        Message::ManufacturerSpecific { payload, .. } => {
+        Ok(Message::ManufacturerSpecific { payload, .. }) => {
             // At this point, the SysEx delimiters and the manufacturer byte(s)
             // have already been stripped off. What's left is the payload.
             // For example, if the original message was "F0 42 30 28 54 02 ... 5C F7",
@@ -37,10 +37,13 @@ fn main() {
             let mut f = fs::File::create(&output_file).expect("unable to create file");
             f.write_all(&payload).expect("unable to write to file");
         },
-        Message::Universal { payload, .. } => {
+        Ok(Message::Universal { payload, .. }) => {
             let output_file = &args[2];
             let mut f = fs::File::create(&output_file).expect("unable to create file");
             f.write_all(&payload).expect("unable to write to file");
+        },
+        Err(e) => {
+            println!("Error: {:?}", e);
         }
     }
 }

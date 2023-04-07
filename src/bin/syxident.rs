@@ -24,12 +24,12 @@ fn main() {
     let count = message_count(buffer.to_vec());
     if count >= 1 {
         if count == 1 {
-            all_messages.push(Message::new(buffer.to_vec()));
+            all_messages.push(Message::new(buffer.to_vec()).ok().unwrap());
         }
         else {
             let messages = split_messages(buffer.to_vec());
             for message in messages {
-                all_messages.push(Message::new(message));
+                all_messages.push(Message::new(message).ok().unwrap());
             }
         }
     };
@@ -38,6 +38,7 @@ fn main() {
     for message in all_messages {
         println!("Message {} of {}", number, count);
         identify(&message);
+        println!("MD5 digest: {:x}", message.digest());
         println!();
         number += 1;
     }
