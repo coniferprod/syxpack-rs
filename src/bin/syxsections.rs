@@ -1,8 +1,9 @@
 use std::io::prelude::*;
 use std::fs;
 use std::env;
-use syxpack::{Message, UniversalKind, message_count, split_messages};
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::fmt;
+use syxpack::{Message, UniversalKind, message_count};
 
 enum SectionKind {
     Initiator,
@@ -10,6 +11,18 @@ enum SectionKind {
     Universal,
     Payload,
     Terminator,
+}
+
+impl fmt::Display for SectionKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match self {
+            SectionKind::Initiator => "Message initiator",
+            SectionKind::Manufacturer => "Manufacturer identifier",
+            SectionKind::Universal => "Universal message identifier",
+            SectionKind::Payload => "Message payload",
+            SectionKind::Terminator => "Message terminator"
+        })
+    }
 }
 
 struct MessageSection {
@@ -29,7 +42,6 @@ fn main() {
     let input_file = &args[1];
 
     let path = Path::new(input_file);
-    let display = path.display();
 
     let mut f = fs::File::open(&input_file).expect("no file found");
     let mut buffer = Vec::new();
@@ -108,6 +120,6 @@ fn main() {
     );
 
     for section in sections {
-        println!("{}: {} ({})", section.offset, section.name, section.length);
+        println!("{:06X}: {} ({}, {} bytes)", section.offset, section.name, section.kind, section.length);
     }
 }
