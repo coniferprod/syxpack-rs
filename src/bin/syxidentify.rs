@@ -1,23 +1,5 @@
-use std::io::prelude::*;
-use std::fs;
 use std::env;
-use syxpack::{Message, UniversalKind, message_count, split_messages};
-
-fn read_file(name: &String) -> Option<Vec<u8>> {
-    match fs::File::open(&name) {
-        Ok(mut f) => {
-            let mut buffer = Vec::new();
-            match f.read_to_end(&mut buffer) {
-                Ok(_) => Some(buffer),
-                Err(_) => None
-            }
-        },
-        Err(_) => {
-            eprintln!("Unable to open file {}", name);
-            None
-        }
-    }
-}
+use syxpack::{Message, UniversalKind, message_count, split_messages, read_file};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -27,18 +9,17 @@ fn main() {
     }
 
     let input_file = &args[1];
-
     if let Some(buffer) = read_file(input_file) {
         let mut all_messages: Vec<Message> = Vec::new();
-        let count = message_count(buffer.to_vec());
+        let count = message_count(&buffer);
         if count >= 1 {
             if count == 1 {
-                all_messages.push(Message::new(buffer.to_vec()).ok().unwrap());
+                all_messages.push(Message::new(&buffer).ok().unwrap());
             }
             else {
                 let messages = split_messages(buffer.to_vec());
                 for message in messages {
-                    all_messages.push(Message::new(message).ok().unwrap());
+                    all_messages.push(Message::new(&message).ok().unwrap());
                 }
             }
         };

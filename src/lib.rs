@@ -4,6 +4,8 @@
 
 use std::fmt;
 use std::collections::HashMap;
+use std::fs;
+use std::io::Read;
 use log::debug;
 use bit::BitIndex;
 use lazy_static::lazy_static;
@@ -137,7 +139,7 @@ pub enum Message {
 
 /// Returns the number of System Exclusive messages in this vector,
 /// based on the count of terminator bytes.
-pub fn message_count(data: Vec<u8>) -> usize {
+pub fn message_count(data: &Vec<u8>) -> usize {
     data.iter().filter(|&n| *n == TERMINATOR).count()
 }
 
@@ -152,7 +154,7 @@ pub fn split_messages(data: Vec<u8>) -> Vec<Vec<u8>> {
 
 impl Message {
     /// Creates a new SysEx message based on the initial data bytes.
-    pub fn new(data: Vec<u8>) -> Result<Self, SystemExclusiveError> {
+    pub fn new(data: &Vec<u8>) -> Result<Self, SystemExclusiveError> {
         if data[0] != INITIATOR {
             return Err(SystemExclusiveError::InvalidMessage);
         }
@@ -611,6 +613,22 @@ pub fn denybblify(data: Vec<u8>, order: NybbleOrder) -> Vec<u8> {
     result
 }
 
+pub fn read_file(name: &String) -> Option<Vec<u8>> {
+    match fs::File::open(&name) {
+        Ok(mut f) => {
+            let mut buffer = Vec::new();
+            match f.read_to_end(&mut buffer) {
+                Ok(_) => Some(buffer),
+                Err(_) => None
+            }
+        },
+        Err(_) => {
+            eprintln!("Unable to open file {}", &name);
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -618,7 +636,7 @@ mod tests {
     #[test]
     fn new_message_manufacturer_standard() {
         let data = vec![0xF0, 0x40, 0x00, 0x20, 0x00, 0x04, 0x00, 0x3F, 0xF7];
-        let message = Message::new(data);
+        let message = Message::new(&data);
         if let Ok(Message::ManufacturerSpecific { manufacturer, .. }) = message {
             assert_eq!(manufacturer, Manufacturer::Standard(0x40));
         }
@@ -630,7 +648,7 @@ mod tests {
     #[test]
     fn new_message_manufacturer_extended() {
         let data = vec![0xF0, 0x00, 0x00, 0x0E, 0x00, 0x41, 0x63, 0x00, 0x5D, 0xF7];
-        let message = Message::new(data);
+        let message = Message::new(&data);
         if let Ok(Message::ManufacturerSpecific { manufacturer, .. }) = message {
             assert_eq!(manufacturer, Manufacturer::Extended([0x00, 0x00, 0x0E]));
         }
