@@ -1,6 +1,6 @@
 [package]
 name = "syxpack"
-version = "0.10.0"
+version = "0.11.0"
 edition = "2021"
 authors = ["Jere Käpyaho <2261936+jerekapyaho@users.noreply.github.com>"]
 license = "MIT"
@@ -27,3 +27,6 @@ name = "syxextract"
 
 [[bin]]
 name = "syxsections"
+
+[[bin]]
+name = "syxreceive"
