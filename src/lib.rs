@@ -6,6 +6,7 @@ use std::fmt;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
+use std::path::Path;
 use log::debug;
 use bit::BitIndex;
 use lazy_static::lazy_static;
@@ -33,12 +34,11 @@ pub enum SystemExclusiveError {
 }
 
 /// MIDI manufacturer. The ID is either a single byte for standard IDs,
-/// three bytes for extended IDs, or Development (non-commercial).
+/// or three bytes for extended IDs.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum Manufacturer {
     Standard(u8),
     Extended([u8; 3]),
-    Development,
 }
 
 impl Manufacturer {
@@ -47,23 +47,17 @@ impl Manufacturer {
         if data.len() != 1 && data.len() != 3 {
             return Err(SystemExclusiveError::InvalidManufacturer);
         }
-        if data[0] == DEVELOPMENT {
-            Ok(Manufacturer::Development)
+        if data[0] == 0x00 {
+            Ok(Manufacturer::Extended([data[0], data[1], data[2]]))
         }
         else {
-            if data[0] == 0x00 {
-                Ok(Manufacturer::Extended([data[0], data[1], data[2]]))
-            }
-            else {
-                Ok(Manufacturer::Standard(data[0]))
-            }
+            Ok(Manufacturer::Standard(data[0]))
         }
     }
 
     /// Gets the manufacturer System Exclusive bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
-            Manufacturer::Development => vec![DEVELOPMENT],
             Manufacturer::Standard(b) => vec![*b],
             Manufacturer::Extended(bs) => vec![bs[0], bs[1], bs[2]],
         }
@@ -74,9 +68,16 @@ impl Manufacturer {
         hex::encode(self.to_bytes()).to_uppercase()
     }
 
+    pub fn is_development(&self) -> bool {
+        match self {
+            Manufacturer::Standard(b) => *b == DEVELOPMENT,
+            Manufacturer::Extended(_) => false
+        }
+    }
+
     /// Gets the name of this manufacturer.
     pub fn name(&self) -> String {
-        if *self == Manufacturer::Development {
+        if self.is_development() {
             return "Development / Non-commercial".to_string()
         }
 
@@ -91,8 +92,11 @@ impl Manufacturer {
 
     /// Gets the group of this manufacturer based on the identifier.
     pub fn group(&self) -> ManufacturerGroup {
+        if self.is_development() {
+            return ManufacturerGroup::Development
+        }
+
         match self {
-            Manufacturer::Development => ManufacturerGroup::Development,
             Manufacturer::Standard(b) => {
                 if (0x01..0x40).contains(b) {
                     ManufacturerGroup::NorthAmerican
@@ -131,9 +135,19 @@ pub enum UniversalKind {
     RealTime,
 }
 
+impl fmt::Display for UniversalKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let name = match self {
+            UniversalKind::NonRealTime => "Non-Real-time",
+            UniversalKind::RealTime => "Real-time",
+        };
+        write!(f, "{}", name)
+    }
+}
+
 /// A MIDI System Exclusive message.
 pub enum Message {
-    Universal { kind: UniversalKind, sub_id1: u8, sub_id2: u8, payload: Vec<u8> },
+    Universal { kind: UniversalKind, target: u8, sub_id1: u8, sub_id2: u8, payload: Vec<u8> },
     ManufacturerSpecific { manufacturer: Manufacturer, payload: Vec<u8> },
 }
 
@@ -170,20 +184,22 @@ impl Message {
 
         match data[1] {
             DEVELOPMENT => Ok(Message::ManufacturerSpecific {
-                manufacturer: Manufacturer::Development,
+                manufacturer: Manufacturer::Standard(data[1]),
                 payload: data[2..last_byte_index].to_vec()
             }),
             NON_REAL_TIME => Ok(Message::Universal {
                 kind: UniversalKind::NonRealTime,
-                sub_id1: data[2],
-                sub_id2: data[3],
-                payload: data[4..last_byte_index].to_vec()
+                target: data[2],
+                sub_id1: data[3],
+                sub_id2: data[4],
+                payload: data[5..last_byte_index].to_vec()
             }),
             REAL_TIME => Ok(Message::Universal {
                 kind: UniversalKind::RealTime,
-                sub_id1: data[2],
-                sub_id2: data[3],
-                payload: data[4..last_byte_index].to_vec()
+                target: data[2],
+                sub_id1: data[3],
+                sub_id2: data[4],
+                payload: data[5..last_byte_index].to_vec()
             }),
             0x00 => Ok(Message::ManufacturerSpecific {
                 manufacturer: Manufacturer::Extended([data[1], data[2], data[3]]),
@@ -196,20 +212,18 @@ impl Message {
         }
     }
 
-    // new_xxx variants for constructing messages are not needed,
-    // because you can just create a struct variant like an ordinary struct.
-
     /// Converts the message into bytes for MIDI messaging.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut result = Vec::<u8>::new();
 
         match self {
-            Message::Universal { kind, sub_id1, sub_id2, payload } => {
+            Message::Universal { kind, target, sub_id1, sub_id2, payload } => {
                 result.push(INITIATOR);
                 result.push(match kind {
                     UniversalKind::NonRealTime => NON_REAL_TIME,
                     UniversalKind::RealTime => REAL_TIME,
                 });
+                result.push(*target);
                 result.push(*sub_id1);
                 result.push(*sub_id2);
                 result.extend(payload);
@@ -229,7 +243,6 @@ impl Message {
     pub fn digest(&self) -> md5::Digest {
         md5::compute(self.to_bytes())
     }
-
 }
 
 /// Group of manufacturer.
@@ -239,6 +252,18 @@ pub enum ManufacturerGroup {
     NorthAmerican,
     EuropeanAndOther,
     Japanese,
+}
+
+impl fmt::Display for ManufacturerGroup {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let name = match self {
+            ManufacturerGroup::Development => "Development",
+            ManufacturerGroup::EuropeanAndOther => "European & Other",
+            ManufacturerGroup::Japanese => "Japanese",
+            ManufacturerGroup::NorthAmerican => "North American",
+        };
+        write!(f, "{}", name)
+    }
 }
 
 lazy_static! {
@@ -542,78 +567,7 @@ impl Packed for Vec<u8> {
     }
 }
 
-/// The order of nybbles in a byte.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub enum NybbleOrder {
-    HighFirst,
-    LowFirst
-}
-
-fn high_nybble(b: u8) -> u8 {
-    (b & 0xf0) >> 4
-}
-
-fn low_nybble(b: u8) -> u8 {
-    b & 0x0f
-}
-
-fn nybbles_from_byte(b: u8) -> (u8, u8) {
-    (high_nybble(b), low_nybble(b))
-}
-
-fn byte_from_nybbles(high: u8, low: u8) -> u8 {
-    high << 4 | low
-}
-
-/// Make a new byte array from `data` with the bytes split into
-/// high and low nybbles. The `order` argument determines
-/// which one comes first.
-pub fn nybblify(data: Vec<u8>, order: NybbleOrder) -> Vec<u8> {
-    let mut result = Vec::<u8>::new();
-
-    for b in data {
-        let n = nybbles_from_byte(b);
-        if order == NybbleOrder::HighFirst {
-            result.push(n.0);
-            result.push(n.1);
-        } else {
-            result.push(n.1);
-            result.push(n.0);
-        }
-    }
-
-    result
-}
-
-/// Make a new byte array from `data` by combining adjacent bytes
-/// representing the high and low nybbles of each byte.
-/// The `order` argument determines which one comes first.
-pub fn denybblify(data: Vec<u8>, order: NybbleOrder) -> Vec<u8> {
-    assert_eq!(data.len() % 2, 0);  // length must be even
-
-    let mut result = Vec::<u8>::new();
-
-    let mut index = 0;
-    let mut offset = 0;
-    let count = data.len() / 2;
-
-    while index < count {
-        let high = data[offset];
-        let low = data[offset + 1];
-        let b = if order == NybbleOrder::HighFirst {
-            byte_from_nybbles(high, low)
-        } else {
-            byte_from_nybbles(low, high)
-        };
-        result.push(b);
-        index += 1;
-        offset += 2;
-    }
-
-    result
-}
-
-pub fn read_file(name: &String) -> Option<Vec<u8>> {
+pub fn read_file(name: &Path) -> Option<Vec<u8>> {
     match fs::File::open(&name) {
         Ok(mut f) => {
             let mut buffer = Vec::new();
@@ -623,7 +577,7 @@ pub fn read_file(name: &String) -> Option<Vec<u8>> {
             }
         },
         Err(_) => {
-            eprintln!("Unable to open file {}", &name);
+            eprintln!("Unable to open file {}", &name.display());
             None
         }
     }
@@ -695,13 +649,26 @@ mod tests {
     }
 
     #[test]
+    fn universal() {
+        let message = Message::Universal {
+            kind: UniversalKind::NonRealTime,
+            target: 0x00,
+            sub_id1: 0x06,  // General information
+            sub_id2: 0x01,  // - Identity request
+            payload: vec![]
+        };
+        let message_bytes = message.to_bytes();
+        assert_eq!(message_bytes, vec![INITIATOR, NON_REAL_TIME, 0x00, 0x06, 0x01, TERMINATOR]);
+    }
+
+    #[test]
     fn development_manufacturer() {
         let message = Message::ManufacturerSpecific {
-            manufacturer: Manufacturer::Development,
+            manufacturer: Manufacturer::Standard(DEVELOPMENT),
             payload: vec![],
         };
         let message_bytes = message.to_bytes();
-        assert_eq!(message_bytes, vec![0xF0, 0x7D, 0xF7]);
+        assert_eq!(message_bytes, vec![INITIATOR, DEVELOPMENT, TERMINATOR]);
     }
 
     #[test]
@@ -728,31 +695,4 @@ mod tests {
         assert_eq!(make_short_packed_test().unpacked(), make_short_unpacked_test());
     }
 
-    #[test]
-    fn test_nybblify() {
-        let b = vec![0x01, 0x23, 0x45];
-        let nb = nybblify(b, NybbleOrder::HighFirst);
-        assert_eq!(nb, vec![0x00, 0x01, 0x02, 0x03, 0x04, 0x05]);
-    }
-
-    #[test]
-    fn test_nybblify_flipped() {
-        let b = vec![0x57, 0x61, 0x76];
-        let nb = nybblify(b, NybbleOrder::LowFirst);
-        assert_eq!(nb, vec![0x07, 0x05, 0x01, 0x06, 0x06, 0x07]);
-    }
-
-    #[test]
-    fn test_denybblify() {
-        let b = vec![0x00, 0x01, 0x02, 0x03, 0x04, 0x05];
-        let nb = denybblify(b, NybbleOrder::HighFirst);
-        assert_eq!(nb, vec![0x01, 0x23, 0x45]);
-    }
-
-    #[test]
-    fn test_denybblify_flipped() {
-        let b = vec![0x07, 0x05, 0x01, 0x06, 0x06, 0x07];
-        let nb = denybblify(b, NybbleOrder::LowFirst);
-        assert_eq!(nb, vec![0x57, 0x61, 0x76]);
-    }
 }
