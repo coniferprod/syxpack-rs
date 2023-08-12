@@ -129,6 +129,16 @@ impl fmt::Display for Manufacturer {
     }
 }
 
+/// Finds out the name of a manufacturer with initial match.
+pub fn find_manufacturer(name: &str) -> Result<String, SystemExclusiveError> {
+    for (_, value) in &*MANUFACTURER_NAMES {
+        if value.to_lowercase().starts_with(&name.to_lowercase()) {
+            return Ok(value.to_string());
+        }
+    }
+    return Err(SystemExclusiveError::InvalidManufacturer);
+}
+
 /// The kind of a Universal System Exclusive message.
 pub enum UniversalKind {
     NonRealTime,
@@ -675,6 +685,17 @@ mod tests {
     fn manufacturer_display_name() {
         let manufacturer = Manufacturer::Standard(0x43);
         assert_eq!(format!("{}", manufacturer), "Yamaha");
+    }
+
+    #[test]
+    fn find_manufacturer_name_success() {
+        let name = find_manufacturer("yama").unwrap();
+        assert_eq!(name, "Yamaha");
+    }
+
+    #[test]
+    fn find_manufacturer_name_failure() {
+        assert!(find_manufacturer("humppaurku").is_err());
     }
 
     fn make_short_unpacked_test() -> Vec<u8> {
