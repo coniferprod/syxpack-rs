@@ -68,6 +68,7 @@ impl Manufacturer {
         hex::encode(self.to_bytes()).to_uppercase()
     }
 
+    /// Returns `true` if this manufacturer represents development / non-commercial.
     pub fn is_development(&self) -> bool {
         match self {
             Manufacturer::Standard(b) => *b == DEVELOPMENT,
@@ -129,11 +130,12 @@ impl fmt::Display for Manufacturer {
     }
 }
 
-/// Finds out the name of a manufacturer with initial match.
-pub fn find_manufacturer(name: &str) -> Result<String, SystemExclusiveError> {
-    for (_, value) in &*MANUFACTURER_NAMES {
+/// Finds a manufacturer by initial match of name.
+pub fn find_manufacturer(name: &str) -> Result<Manufacturer, SystemExclusiveError> {
+    for (key, value) in &*MANUFACTURER_NAMES {
         if value.to_lowercase().starts_with(&name.to_lowercase()) {
-            return Ok(value.to_string());
+            let id_bytes = hex::decode(key).unwrap();
+            return Ok(Manufacturer::new(id_bytes).unwrap());
         }
     }
     return Err(SystemExclusiveError::InvalidManufacturer);
@@ -689,8 +691,8 @@ mod tests {
 
     #[test]
     fn find_manufacturer_name_success() {
-        let name = find_manufacturer("yama").unwrap();
-        assert_eq!(name, "Yamaha");
+        let manuf = find_manufacturer("yama").unwrap();
+        assert_eq!(manuf.name(), "Yamaha");
     }
 
     #[test]
