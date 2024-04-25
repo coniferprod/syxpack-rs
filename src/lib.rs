@@ -33,6 +33,15 @@ pub enum SystemExclusiveError {
     InvalidManufacturer,
 }
 
+impl fmt::Display for SystemExclusiveError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match &self {
+            SystemExclusiveError::InvalidMessage => "Invalid System Exclusive message",
+            SystemExclusiveError::InvalidManufacturer => "Invalid manufacturer identifier"
+        })
+    }
+}
+
 /// MIDI manufacturer. The ID is either a single byte for standard IDs,
 /// or three bytes for extended IDs.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -141,7 +150,8 @@ pub fn find_manufacturer(name: &str) -> Result<Manufacturer, SystemExclusiveErro
     return Err(SystemExclusiveError::InvalidManufacturer);
 }
 
-/// The kind of a Universal System Exclusive message.
+/// The kind of a Universal System Exclusive message.#[derive(Debug)]
+#[derive(Debug)]
 pub enum UniversalKind {
     NonRealTime,
     RealTime,
@@ -158,6 +168,7 @@ impl fmt::Display for UniversalKind {
 }
 
 /// A MIDI System Exclusive message.
+#[derive(Debug)]
 pub enum Message {
     Universal { kind: UniversalKind, target: u8, sub_id1: u8, sub_id2: u8, payload: Vec<u8> },
     ManufacturerSpecific { manufacturer: Manufacturer, payload: Vec<u8> },
@@ -180,7 +191,7 @@ pub fn split_messages(data: Vec<u8>) -> Vec<Vec<u8>> {
 
 impl Message {
     /// Creates a new SysEx message based on the initial data bytes.
-    pub fn new(data: &Vec<u8>) -> Result<Self, SystemExclusiveError> {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, SystemExclusiveError> {
         if data[0] != INITIATOR {
             return Err(SystemExclusiveError::InvalidMessage);
         }
@@ -602,7 +613,7 @@ mod tests {
     #[test]
     fn new_message_manufacturer_standard() {
         let data = vec![0xF0, 0x40, 0x00, 0x20, 0x00, 0x04, 0x00, 0x3F, 0xF7];
-        let message = Message::new(&data);
+        let message = Message::from_bytes(&data);
         if let Ok(Message::ManufacturerSpecific { manufacturer, .. }) = message {
             assert_eq!(manufacturer, Manufacturer::Standard(0x40));
         }
@@ -614,7 +625,7 @@ mod tests {
     #[test]
     fn new_message_manufacturer_extended() {
         let data = vec![0xF0, 0x00, 0x00, 0x0E, 0x00, 0x41, 0x63, 0x00, 0x5D, 0xF7];
-        let message = Message::new(&data);
+        let message = Message::from_bytes(&data);
         if let Ok(Message::ManufacturerSpecific { manufacturer, .. }) = message {
             assert_eq!(manufacturer, Manufacturer::Extended([0x00, 0x00, 0x0E]));
         }
