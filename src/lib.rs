@@ -52,7 +52,7 @@ pub enum Manufacturer {
 
 impl Manufacturer {
     /// Creates a new manufacturer from System Exclusive bytes.
-    pub fn new(data: Vec<u8>) -> Result<Self, SystemExclusiveError> {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, SystemExclusiveError> {
         if data.len() != 1 && data.len() != 3 {
             return Err(SystemExclusiveError::InvalidManufacturer);
         }
@@ -62,6 +62,11 @@ impl Manufacturer {
         else {
             Ok(Manufacturer::Standard(data[0]))
         }
+    }
+
+    /// Creates a new manufacturer with default ID.
+    pub fn new() -> Self {
+        Manufacturer::Standard(0x40)
     }
 
     /// Gets the manufacturer System Exclusive bytes.
@@ -144,7 +149,7 @@ pub fn find_manufacturer(name: &str) -> Result<Manufacturer, SystemExclusiveErro
     for (key, value) in &*MANUFACTURER_NAMES {
         if value.to_lowercase().starts_with(&name.to_lowercase()) {
             let id_bytes = hex::decode(key).unwrap();
-            return Ok(Manufacturer::new(id_bytes).unwrap());
+            return Ok(Manufacturer::from_bytes(&id_bytes).unwrap());
         }
     }
     return Err(SystemExclusiveError::InvalidManufacturer);
