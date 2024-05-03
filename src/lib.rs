@@ -155,7 +155,7 @@ pub fn find_manufacturer(name: &str) -> Result<Manufacturer, SystemExclusiveErro
     return Err(SystemExclusiveError::InvalidManufacturer);
 }
 
-/// The kind of a Universal System Exclusive message.#[derive(Debug)]
+/// The kind of a Universal System Exclusive message.
 #[derive(Debug)]
 pub enum UniversalKind {
     NonRealTime,
@@ -268,6 +268,7 @@ impl Message {
         result
     }
 
+    /// Compute the MD5 digest for this message.
     pub fn digest(&self) -> md5::Digest {
         md5::compute(self.to_bytes())
     }
@@ -595,6 +596,8 @@ impl Packed for Vec<u8> {
     }
 }
 
+/// Reads a binary file `name` into a vector.
+/// Returns `Err` if the file can't be opened.
 pub fn read_file(name: &Path) -> Option<Vec<u8>> {
     match fs::File::open(&name) {
         Ok(mut f) => {
