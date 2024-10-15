@@ -43,3 +43,8 @@ by the 0xF7 terminator, using the `split_messages` function:
     };
     println!("Messages found: {}", count);
 
+## MIDI manufacturer names
+
+The MIDI manufacturer names are originally from the MIDI Manufacturers' Association (MMA).
+They are not responsible for any errors or omissions. Then again, any obvious errors
+have not been corrected either.

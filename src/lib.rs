@@ -4,11 +4,6 @@
 
 use std::fmt;
 use std::collections::HashMap;
-use std::fs;
-use std::io::Read;
-use std::path::Path;
-use log::debug;
-use bit::BitIndex;
 use lazy_static::lazy_static;
 
 /// Manufacturer specific SysEx message initiator.
@@ -441,6 +436,267 @@ lazy_static! {
             ("00004D", "Studio Electronics"),
             ("00004E", "Euphonix, Inc"),
             ("00004F", "InterMIDI, Inc."),
+            ("000050", "MIDI Solutions Inc."),
+            ("000051", "3DO Company"),
+            ("000052", "Lightwave Research / High End Systems"),
+            ("000053", "Micro-W Corporation"),
+            ("000054", "Spectral Synthesis, Inc."),
+            ("000055", "Lone Wolf"),
+            ("000056", "Studio Technologies Inc."),
+            ("000057", "Peterson Electro-Musical Product, Inc."),
+            ("000058", "Atari Corporation"),
+            ("000059", "Marion Systems Corporation"),
+            ("00005A", "Design Event"),
+            ("00005B", "Winjammer Software Ltd."),
+            ("00005C", "AT&T Bell Laboratories"),
+            ("00005D", "Reserved"),
+            ("00005E", "Symetrix"),
+            ("00005F", "MIDI the World"),
+            ("000060", "Spatializer"),
+            ("000061", "Micros ‘N MIDI"),
+            ("000062", "Accordians International"),
+            ("000063", "EuPhonics (now 3Com)"),
+            ("000064", "Musonix"),
+            ("000065", "Turtle Beach Systems (Voyetra)"),
+            ("000066", "Loud Technologies / Mackie"),
+            ("000067", "Compuserve"),
+            ("000068", "BEC Technologies"),
+            ("000069", "QRS Music Inc"),
+            ("00006A", "P.G. Music"),
+            ("00006B", "Sierra Semiconductor"),
+            ("00006C", "EpiGraf"),
+            ("00006D", "Electronics Diversified Inc"),
+            ("00006E", "Tune 1000"),
+            ("00006F", "Advanced Micro Devices"),
+            ("000070", "Mediamation"),
+            ("000071", "Sabine Musical Mfg. Co. Inc."),
+            ("000072", "Woog Labs"),
+            ("000073", "Micropolis Corp"),
+            ("000074", "Ta Horng Musical Instrument"),
+            ("000075", "e-Tek Labs (Forte Tech)"),
+            ("000076", "Electro-Voice"),
+            ("000077", "Midisoft Corporation"),
+            ("000078", "QSound Labs"),
+            ("000079", "Westrex"),
+            ("00007A", "Nvidia"),
+            ("00007B", "ESS Technology"),
+            ("00007C", "Media Trix Peripherals"),
+            ("00007D", "Brooktree Corp"),
+            ("00007E", "Otari Corp"),
+            ("00007F", "Key Electronics, Inc."),
+            ("000100", "Shure Incorporated"),
+            ("000101", "AuraSound"),
+            ("000102", "Crystal Semiconductor"),
+            ("000103", "Conexant (Rockwell)"),
+            ("000104", "Silicon Graphics"),
+            ("000105", "M-Audio (Midiman)"),
+            ("000106", "PreSonus"),
+            // 000107?
+            ("000108", "Topaz Enterprises"),
+            ("000109", "Cast Lighting"),
+            ("00010A", "Microsoft Consumer Division"),
+            ("00010B", "Sonic Foundry"),
+            ("00010C", "Line 6 (Fast Forward) (Yamaha)"),
+            ("00010D", "Beatnik Inc"),
+            ("00010E", "Van Koevering Company"),
+            ("00010F", "Altech Systems"),
+            ("000110", "S & S Research"),
+            ("000111", "VLSI Technology"),
+            ("000112", "Chromatic Research"),
+            ("000113", "Sapphire"),
+            ("000114", "IDRC"),
+            ("000115", "Justonic Tuning"),
+            ("000116", "TorComp Research Inc."),
+            ("000117", "Newtek Inc."),
+            ("000118", "Sound Sculpture"),
+            ("000119", "Walker Technical"),
+            ("00011A", "Digital Harmony (PAVO)"),
+            ("00011B", "InVision Interactive"),
+            ("00011C", "T-Square Design"),
+            ("00011D", "Nemesys Music Technology"),
+            ("00011E", "DBX Professional (Harman Intl)"),
+            ("00011F", "Syndyne Corporation"),
+            ("000120", "Bitheadz"),
+            ("000121", "BandLab Technologies"),
+            ("000122", "Analog Devices"),
+            ("000123", "National Semiconductor"),
+            ("000124", "Boom Theory / Adinolfi Alternative Percussion"),
+            ("000125", "Virtual DSP Corporation"),
+            ("000126", "Antares Systems"),
+            ("000127", "Angel Software"),
+            ("000128", "St Louis Music"),
+            ("000129", "Passport Music Software LLC (Gvox)"),
+            ("00012A", "Ashley Audio Inc."),
+            ("00012B", "Vari-Lite Inc."),
+            ("00012C", "Summit Audio Inc."),
+            ("00012D", "Aureal Semiconductor Inc."),
+            ("00012E", "SeaSound LLC"),
+            ("00012F", "U.S. Robotics"),
+            ("000130", "Aurisis Research"),
+            ("000131", "Nearfield Research"),
+            ("000132", "FM7 Inc"),
+            ("000133", "Swivel Systems"),
+            ("000134", "Hyperactive Audio Systems"),
+            ("000135", "MidiLite (Castle Studios Productions)"),
+            ("000136", "Radikal Technologies"),
+            ("000137", "Roger Linn Design"),
+            ("000138", "TC-Helicon Vocal Technologies"),
+            ("000139", "Event Electronics"),
+            ("00013A", "Sonic Network Inc"),
+            ("00013B", "Realtime Music Solutions"),
+            ("00013C", "Apogee Digital"),
+            ("00013D", "Classical Organs, Inc."),
+            ("00013E", "Microtools Inc."),
+            ("00013F", "Numark Industries"),
+            ("000140", "Frontier Design Group, LLC"),
+            ("000141", "Recordare LLC"),
+            ("000142", "Starr Labs"),
+            ("000143", "Voyager Sound Inc."),
+            ("000144", "Manifold Labs"),
+            ("000145", "Aviom Inc."),
+            ("000146", "Mixmeister Technology"),
+            ("000147", "Notation Software"),
+            ("000148", "Mercurial Communications"),
+            ("000149", "Wave Arts"),
+            ("00014A", "Logic Sequencing Devices"),
+            ("00014B", "Axess Electronics"),
+            ("00014C", "Muse Research"),
+            ("00014D", "Open Labs"),
+            ("00014E", "Guillemot Corp"),
+            ("00014F", "Samson Technologies"),
+            ("000150", "Electronic Theatre Controls"),
+            ("000151", "Blackberry (RIM)"),
+            ("000152", "Mobileer"),
+            ("000153", "Synthogy"),
+            ("000154", "Lynx Studio Technology Inc."),
+            ("000155", "Damage Control Engineering LLC"),
+            ("000156", "Yost Engineering, Inc."),
+            ("000157", "Brooks & Forsman Designs LLC / DrumLite"),
+            ("000158", "Infinite Response"),
+            ("000159", "Garritan Corp"),
+            ("00015A", "Plogue Art et Technologie, Inc"),
+            ("00015B", "RJM Music Technology"),
+            ("00015C", "Custom Solutions Software"),
+            ("00015D", "Sonarcana LLC / Highly Liquid"),
+            ("00015E", "Centrance"),
+            ("00015F", "Kesumo LLC"),
+            ("000160", "Stanton (Gibson Brands)"),
+            ("000161", "Livid Instruments"),
+            ("000162", "First Act / 745 Media"),
+            ("000163", "Pygraphics, Inc."),
+            ("000164", "Panadigm Innovations Ltd"),
+            ("000165", "Avedis Zildjian Co"),
+            ("000166", "Auvital Music Corp"),
+            ("000167", "You Rock Guitar (was: Inspired Instruments)"),
+            ("000168", "Chris Grigg Designs"),
+            ("000169", "Slate Digital LLC"),
+            ("00016A", "Mixware"),
+            ("00016B", "Social Entropy"),
+            ("00016C", "Source Audio LLC"),
+            ("00016D", "Ernie Ball / Music Man"),
+            ("00016E", "Fishman"),
+            ("00016F", "Custom Audio Electronics"),
+            ("000170", "American Audio/DJ"),
+            ("000171", "Mega Control Systems"),
+            ("000172", "Kilpatrick Audio"),
+            ("000173", "iConnectivity"),
+            ("000174", "Fractal Audio"),
+            ("000175", "NetLogic Microsystems"),
+            ("000176", "Music Computing"),
+            ("000177", "Nektar Technology Inc"),
+            ("000178", "Zenph Sound Innovations"),
+            ("000179", "DJTechTools.com"),
+            ("00017A", "Rezonance Labs"),
+            ("00017B", "Decibel Eleven"),
+            ("00017C", "CNMAT"),
+            ("00017D", "Media Overkill"),
+            ("00017E", "Confusion Studios"),
+            ("00017F", "moForte Inc"),
+            ("000200", "Miselu Inc"),
+            ("000201", "Amelia's Compass LLC"),
+            ("000202", "Zivix LLC"),
+            ("000203", "Artiphon"),
+            ("000204", "Synclavier Digital"),
+            ("000205", "Light & Sound Control Devices LLC"),
+            ("000206", "Retronyms Inc"),
+            ("000207", "JS Technologies"),
+            ("000208", "Quicco Sound"),
+            ("000209", "A-Designs Audio"),
+            ("00020A", "McCarthy Music Corp"),
+            ("00020B", "Denon DJ"),
+            ("00020C", "Keith Robert Murray"),
+            ("00020D", "Google"),
+            ("00020E", "ISP Technologies"),
+            ("00020F", "Abstrakt Instruments LLC"),
+            ("000210", "Meris LLC"),
+            ("000211", "Sensorpoint LLC"),
+            ("000212", "Hi-Z Labs"),
+            ("000213", "Imitone"),
+            ("000214", "Intellijel Designs Inc."),
+            ("000215", "Dasz Instruments Inc."),
+            ("000216", "Remidi"),
+            ("000217", "Disaster Area Designs LLC"),
+            ("000218", "Universal Audio"),
+            ("000219", "Carter Duncan Corp"),
+            ("00021A", "Essential Technology"),
+            ("00021B", "Cantux Research LLC"),
+            ("00021C", "Hummel Technologies"),
+            ("00021D", "Sensel Inc"),
+            ("00021E", "DBML Group"),
+            ("00021F", "Madrona Labs"),
+            ("000220", "Mesa Boogie"),
+            ("000221", "Effigy Labs"),
+            ("000222", "Amenote"),
+            ("000223", "Red Panda LLC"),
+            ("000224", "OnSong LLC"),
+            ("000225", "Jamboxx Inc."),
+            ("000226", "Electro-Harmonix"),
+            ("000227", "RnD64 Inc"),
+            ("000228", "Neunaber Technology LLC"),
+            ("000229", "Kaom Inc."),
+            ("00022A", "Hallowell EMC"),
+            ("00022B", "Sound Devices, LLC"),
+            ("00022C", "Spectrasonics, Inc"),
+            ("00022D", "Second Sound, LLC"),
+            ("00022E", "8eo (Horn)"),
+            ("00022F", "VIDVOX LLC"),
+            ("000230", "Matthews Effects"),
+            ("000231", "Bright Blue Beetle"),
+            ("000232", "Audio Impressions"),
+            ("000233", " Looperlative"),
+            ("000234", "Steinway"),
+            ("000235", "Ingenious Arts and Technologies LLC"),
+            ("000236", "DCA Audio"),
+            ("000237", "Buchla USA"),
+            ("000238", "Sinicon"),
+            ("000239", "Isla Instruments"),
+            ("00023A", "Soundiron LLC"),
+            ("00023B", "Sonoclast, LLC"),
+            ("00023C", "Copper and Cedar"),
+            ("00023D", "Whirled Notes"),
+            ("00023E", "Cejetvole, LLC"),
+            ("00023F", "DAWn Audio LLC"),
+            ("000240", "Space Brain Circuits"),
+            ("000241", "Caedence"),
+            ("000242", "HCN Designs, LLC (The MIDI Maker)"),
+            ("000243", "PTZOptics"),
+            ("000244", "Noise Engineering"),
+            ("000245", "Synthesia LLC"),
+            ("000246", "Jeff Whitehead Lutherie LLC"),
+            ("000247", "Wampler Pedals Inc."),
+            ("000248", "Tapis Magique"),
+            ("000249", "Leaf Secrets"),
+            ("00024A", "Groove Synthesis"),
+            ("00024B", "Audiocipher Technologies LLC"),
+            ("00024C", "Mellotron Inc."),
+            ("00024D", "Hologram Electronics LLC"),
+            ("00024E", "iCON Americas, LLC"),
+            ("00024F", "Singular Sound"),
+            ("000250", "Genovation Inc"),
+            ("000251", "Method Red"),
+            ("000252", "Brain Inventions"),
+            ("000253", "Synervoz Communications Inc."),
+            ("000254", "Hypertriangle Inc"),
 
             // European & Other Group
             ("002000", "Dream SAS"),
@@ -463,17 +719,57 @@ lazy_static! {
             ("002011", "Forefront Technology"),
             ("002012", "Studio Audio and Video Ltd."),
             ("002013", "Kenton Electronics"),
-
+            ("002014", "Celco/ Electrosonic"),
+            ("002015", "ADB"),
+            ("002016", "Marshall Products Limited"),
+            ("002017", "DDA"),
+            ("002018", "BSS Audio Ltd."),
+            ("002019", "MA Lighting Technology"),
+            ("00201A", "Fatar SRL c/o Music Industries"),
+            ("00201B", "QSC Audio Products Inc."),
+            ("00201C", "Artisan Clasic Organ Inc."),
+            ("00201D", "Orla Spa"),
+            ("00201E", "Pinnacle Audio (Klark Teknik PLC)"),
             ("00201F", "TC Electronics"),
             ("002020", "Doepfer Musikelektronik GmbH"),
             ("002021", "Creative ATC / E-mu"),
-
+            ("002022", "Seyddo/Minami"),
+            ("002023", "LG Electronics (Goldstar)"),
+            ("002024", "Midisoft sas di M.Cima & C"),
+            ("002025", "Samick Musical Inst. Co. Ltd."),
+            ("002026", "Penny and Giles (Bowthorpe PLC)"),
+            ("002027", "Acorn Computer"),
+            ("002028", "LSC Electronics Pty. Ltd."),
             ("002029", "Focusrite/Novation"),
-
+            ("00202A", "Samkyung Mechatronics"),
+            ("00202B", "Medeli Electronics Co."),
+            ("00202C", "Charlie Lab SRL"),
+            ("00202D", "Blue Chip Music Technology"),
+            ("00202E", "BEE OH Corp"),
+            ("00202F", "LG Semicon America"),
+            ("002030", "TESI"),
+            ("002031", "EMAGIC"),
             ("002032", "Behringer GmbH"),
             ("002033", "Access Music Electronics"),
-
+            ("002034", "Synoptic"),
+            ("002035", "Hanmesoft"),
+            ("002036", "Terratec Electronic GmbH"),
+            ("002037", "Proel SpA"),
+            ("002038", "IBK MIDI"),
+            ("002039", "IRCAM"),
             ("00203A", "Propellerhead Software"),
+            ("00203B", "Red Sound Systems Ltd"),
+            ("00203C", "Elektron ESI AB"),
+            ("00203D", "Sintefex Audio"),
+            ("00203E", "MAM (Music and More)"),
+            ("00203F", "Amsaro GmbH"),
+            ("002040", "CDS Advanced Technology BV (Lanbox)"),
+            ("002041", "Mode Machines (Touched By Sound GmbH)"),
+            ("002042", "DSP Arts"),
+            ("002043", "Phil Rees Music Tech"),
+            ("002044", "Stamer Musikanlagen GmbH"),
+            ("002045", "Musical Muntaner S.A. dba Soundart"),
+            ("002046", "C-Mexx Software"),
 
             ("00206B", "Arturia"),
             ("002076", "Teenage Engineering"),
@@ -524,94 +820,6 @@ lazy_static! {
             ("004007", "Slik Corporation"),
         ])
     };
-}
-
-/// Packed format of SysEx data used by KORG.
-pub trait Packed {
-    fn packed(&self) -> Vec<u8>;
-    fn unpacked(&self) -> Vec<u8>;
-}
-
-impl Packed for Vec<u8> {
-    /// Returns this byte vector in a packed format.
-    fn packed(&self) -> Vec<u8> {
-        // Split the original vector into 7-byte chunks:
-        let chunks = self.chunks(7);
-        debug!("chunk count = {}", chunks.len());
-
-        let mut result = Vec::<u8>::new();
-        for chunk in chunks {
-            let mut high_bits = Vec::<bool>::new();
-
-            // Collect the high bits
-            for b in chunk {
-                high_bits.push(b.bit(7));
-            }
-
-            let mut index_byte = 0u8;
-            for (index, value) in high_bits.iter().enumerate() {  // starting from b0
-                index_byte.set_bit(index, *value);
-            }
-            result.push(index_byte);
-
-            for b in chunk {
-                result.push(b & 0x7f);  // use only bits 0...6
-            }
-        }
-
-        result
-    }
-
-    /// Unpacks a previously packed byte vector.
-    fn unpacked(&self) -> Vec<u8> {
-        // Split the original vector into 8-byte chunks:
-        let chunks = self.chunks(8);
-        debug!("chunk count = {}", chunks.len());
-
-        let mut result = Vec::<u8>::new();
-        for chunk in chunks {
-            debug!("chunk: {:?}", chunk);
-
-            let index_byte = chunk[0];
-            debug!("index byte = 0b{:08b}", index_byte);
-
-            let mut index = 0;
-            for b in chunk[1..].iter() {  // process bytes 1..7 of chunk
-                debug!("index {}: b = {}", index, b);
-
-                let mut v = *b;
-                debug!("v = {}", v);
-                debug!("index {}: i. bit = {}", index, index_byte.bit(index));
-
-                // Set the top bit of this byte with the corresponding index bit
-                v.set_bit(7, index_byte.bit(index));
-                debug!("v = {}", v);
-                result.push(v);
-
-                index += 1;
-            }
-        }
-
-        result
-    }
-}
-
-/// Reads a binary file `name` into a vector.
-/// Returns `Err` if the file can't be opened.
-pub fn read_file(name: &Path) -> Option<Vec<u8>> {
-    match fs::File::open(&name) {
-        Ok(mut f) => {
-            let mut buffer = Vec::new();
-            match f.read_to_end(&mut buffer) {
-                Ok(_) => Some(buffer),
-                Err(_) => None
-            }
-        },
-        Err(_) => {
-            eprintln!("Unable to open file {}", &name.display());
-            None
-        }
-    }
 }
 
 #[cfg(test)]
@@ -718,23 +926,4 @@ mod tests {
     fn find_manufacturer_name_failure() {
         assert!(find_manufacturer("humppaurku").is_err());
     }
-
-    fn make_short_unpacked_test() -> Vec<u8> {
-        vec![101, 202, 103, 204, 105, 206, 107]
-    }
-
-    fn make_short_packed_test() -> Vec<u8> {
-        vec![42, 101, 74, 103, 76, 105, 78, 107]
-    }
-
-    #[test]
-    fn test_short_packed() {
-        assert_eq!(make_short_unpacked_test().packed(), make_short_packed_test());
-    }
-
-    #[test]
-    fn test_short_unpacked() {
-        assert_eq!(make_short_packed_test().unpacked(), make_short_unpacked_test());
-    }
-
 }

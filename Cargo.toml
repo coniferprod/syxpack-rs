@@ -1,6 +1,6 @@
 [package]
 name = "syxpack"
-version = "0.16.0"
+version = "0.17.0"
 edition = "2021"
 authors = ["Jere Käpyaho <2261936+jerekapyaho@users.noreply.github.com>"]
 license = "MIT"
@@ -10,9 +10,7 @@ Helpers for processing MIDI System Exclusive messages.
 repository = "https://github.com/coniferprod/syxpack-rs"
 
 [dependencies]
-lazy_static = "1.4.0"
-log = "0.4.17"
-bit = "0.1.1"
+lazy_static = "1.5.0"
 hex = "0.4.3"
 md5 = "0.7.0"
-nybble = "0.1.0"
+nybble = "0.1.1"
